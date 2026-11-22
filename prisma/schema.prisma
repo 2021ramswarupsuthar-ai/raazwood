@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum TaxKind {
+  INTRA
+  INTER
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String    @default("")
+  image       String?
+  sortOrder   Int       @default(0)
+  seoTitle    String?
+  seoDesc     String?
+  products    Product[]
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id])
+  shortDesc   String    @default("")
+  description String    @default("")
+  material    String    @default("Solid sheesham wood")
+  finish      String    @default("")
+  dimensions  String    @default("")
+  features    String[]  @default([])
+  images      String[]  @default([])
+  hsn         String    @default("9403")
+  gstRate     Int       @default(18)
+  seoTitle    String?
+  seoDesc     String?
+  isActive    Boolean   @default(true)
+  isFeatured  Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  variants    Variant[]
+
+  @@index([categoryId, isActive])
+}
+
+// A purchasable option: a size/finish, or a pack such as "Set of 2" (packQty = 2).
+model Variant {
+  id            String      @id @default(cuid())
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku           String      @unique
+  label         String
+  packQty       Int         @default(1)
+  mrpPaise      Int
+  pricePaise    Int
+  stock         Int         @default(0)
+  shippingPaise Int         @default(0)
+  weightKg      Float?
+  orderItems    OrderItem[]
+
+  @@index([productId])
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  publicId          String      @unique
+  status            OrderStatus @default(PENDING_PAYMENT)
+  customerName      String
+  phone             String
+  email             String?
+  addressLine1      String
+  addressLine2      String?
+  city              String
+  stateCode         String
+  pincode           String
+  notes             String?
+  taxKind           TaxKind
+  goodsTotalPaise   Int
+  shippingPaise     Int
+  totalPaise        Int
+  taxablePaise      Int
+  cgstPaise         Int         @default(0)
+  sgstPaise         Int         @default(0)
+  igstPaise         Int         @default(0)
+  razorpayOrderId   String?     @unique
+  razorpayPaymentId String?
+  invoiceNo         String?     @unique
+  invoiceDate       DateTime?
+  expiresAt         DateTime
+  paidAt            DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  items             OrderItem[]
+  payments          Payment[]
+
+  @@index([status, createdAt])
+  @@index([phone])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId      String
+  variant        Variant @relation(fields: [variantId], references: [id])
+  productName    String
+  variantLabel   String
+  sku            String
+  hsn            String
+  gstRate        Int
+  unitPricePaise Int
+  qty            Int
+  lineTotalPaise Int
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider          String   @default("razorpay")
+  providerPaymentId String   @unique
+  status            String
+  amountPaise       Int
+  raw               Json?
+  createdAt         DateTime @default(now())
+
+  @@index([orderId])
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+// Sequence counters (e.g. invoice numbers per financial year).
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
