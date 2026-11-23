@@ -26,6 +26,43 @@ const products: SeedProduct[] = [
   { slug: 'sample-sheesham-stool', name: 'SAMPLE Wooden Stool', cat: 'chairs', short: 'Sturdy solid wood stool.', dims: '16 x 16 x 18 in', variants: [{ sku: 'SMP-STL-1', label: 'Single', mrp: 2500, price: 1800, stock: 20, ship: 300 }, { sku: 'SMP-STL-2', label: 'Set of 2', pack: 2, mrp: 4800, price: 3300, stock: 12, ship: 500 }] },
 ];
 
+const SAMPLE_POSTS = [
+  {
+    slug: 'sample-how-to-choose-a-bed-size',
+    title: 'SAMPLE: How to choose the right bed size',
+    excerpt: 'King, queen or single? A quick guide to bed sizes and room space. Sample article: replace before launch.',
+    body: `This is a SAMPLE article created by the seed script. Edit or unpublish it in Admin > Blog before launch.
+
+## Common bed sizes in India
+- Single: about 3 x 6.5 ft, for one person or a child's room
+- Queen: about 5 x 6.5 ft, the most popular size for couples
+- King: about 6 x 6.5 ft, for extra space or a large bedroom
+
+## Leave room to walk around
+Keep at least 2 ft of free space on the sides of the bed you use, and check that wardrobe doors and drawers can open fully.
+
+## Measure before you order
+Check the dimensions on the product page and measure doors, staircases and lifts so the bed can be carried in.`,
+  },
+  {
+    slug: 'sample-caring-for-sheesham-wood',
+    title: 'SAMPLE: Caring for sheesham wood furniture',
+    excerpt: 'Simple habits that keep solid wood looking good for years. Sample article: replace before launch.',
+    body: `This is a SAMPLE article created by the seed script. Edit or unpublish it in Admin > Blog before launch.
+
+## Everyday care
+- Dust with a soft, dry cloth
+- Wipe spills straight away
+- Use coasters and table mats for hot or wet items
+
+## Sun, heat and moisture
+Keep furniture away from direct sunlight, heaters and damp walls. Large changes in humidity can make any solid wood move slightly.
+
+## Polishing
+Polish occasionally with a wood polish that suits the finish. Test on a hidden spot first.`,
+  },
+];
+
 async function main() {
   for (const c of categories) await prisma.category.upsert({ where: { slug: c.slug }, update: {}, create: c });
   const cats = new Map((await prisma.category.findMany()).map((c) => [c.slug, c.id]));
@@ -40,6 +77,18 @@ async function main() {
         variants: { create: p.variants.map((v) => ({ sku: v.sku, label: v.label, packQty: v.pack ?? 1, mrpPaise: v.mrp * 100, pricePaise: v.price * 100, stock: v.stock, shippingPaise: v.ship * 100 })) },
       },
     });
+  }
+
+  // SAMPLE coupon so the coupon flow can be tried at checkout. Deactivate or delete it in /admin/coupons before launch.
+  await prisma.coupon.upsert({
+    where: { code: 'SAMPLE10' },
+    update: {},
+    create: { code: 'SAMPLE10', description: 'SAMPLE: 10% off up to ₹2,000 on orders above ₹5,000. Remove before launch.', kind: 'PERCENT', value: 10, minOrderPaise: 500_000, maxDiscountPaise: 200_000 },
+  });
+
+  // SAMPLE buying guides (README §3.1 blog). Rewrite or unpublish them in /admin/blog before launch.
+  for (const post of SAMPLE_POSTS) {
+    await prisma.blogPost.upsert({ where: { slug: post.slug }, update: {}, create: { ...post, isPublished: true, publishedAt: new Date() } });
   }
 
   const email = process.env.ADMIN_SEED_EMAIL?.trim().toLowerCase();

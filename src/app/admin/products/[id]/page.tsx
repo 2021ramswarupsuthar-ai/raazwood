@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireAdmin } from '@/server/admin-auth';
 import { prisma } from '@/server/db';
 import ProductForm from '@/components/ProductForm';
-import { saveVariantAction, updateProductAction } from '../../actions';
+import { archiveProductAction, saveVariantAction, updateProductAction } from '../../actions';
 
 type V = { id?: string; sku?: string; label?: string; packQty?: number; mrpPaise?: number; pricePaise?: number; stock?: number; shippingPaise?: number };
 
@@ -36,6 +36,11 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
       <div className="mt-4 space-y-3">{p.variants.map((v) => <VariantForm key={v.id} productId={p.id} v={v} submit="Update" />)}</div>
       <h3 className="mt-8 font-display text-2xl font-semibold">Add a variant</h3>
       <div className="mt-3"><VariantForm productId={p.id} submit="Add variant" /></div>
+      <section className="mt-12 rounded-2xl border border-red-200 p-5 text-sm">
+        <h2 className="font-display text-2xl font-semibold">{p.deletedAt ? 'Archived' : 'Archive product'}</h2>
+        <p className="mt-1 text-ink/70">{p.deletedAt ? `Archived on ${p.deletedAt.toLocaleDateString('en-IN')}. It is hidden from the shop but kept for past orders and invoices.` : 'Removes the product from the shop, search and sitemap. Past orders and invoices keep working. You can restore it later.'}</p>
+        <form action={archiveProductAction.bind(null, p.id, !p.deletedAt)} className="mt-3"><button className={`btn ${p.deletedAt ? 'btn-primary' : 'btn-ghost !border-red-700 !text-red-700 hover:!bg-red-700 hover:!text-white'}`}>{p.deletedAt ? 'Restore product' : 'Archive product'}</button></form>
+      </section>
     </div>
   );
 }

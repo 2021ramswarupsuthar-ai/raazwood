@@ -2,7 +2,8 @@ import type { Config } from 'tailwindcss';
 
 // Brand: tan #AB8D69 (from the logo). `brand-dark` is for text/buttons: #AB8D69 on white is only ~3:1 contrast.
 const config: Config = {
-  content: ['./src/**/*.{ts,tsx}'],
+  // relative: resolve globs from this file, not the shell's working directory
+  content: { relative: true, files: ['./src/**/*.{ts,tsx}'] },
   theme: {
     extend: {
       colors: {

@@ -2,6 +2,11 @@
 // Razorpay is never called here: checkout tests stop before payment.
 import { test, expect } from '@playwright/test';
 
+// Answer the cookie banner up front so it never covers buttons in the tests.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('rw_consent_v1', 'essential'); } catch { /* ignore */ } });
+});
+
 test.describe('SEO basics', () => {
   test('home has title, description, canonical, h1 and JSON-LD', async ({ page }) => {
     await page.goto('/');
@@ -61,7 +66,8 @@ test.describe('Shopping flow', () => {
     await page.goto('/cart');
     await expect(page.getByText('SAMPLE Sheesham King Size Bed')).toBeVisible();
     await page.getByRole('button', { name: /Increase quantity/ }).click();
-    await expect(page.getByText('₹84,000').first()).toBeVisible();
+    // the product page preselects the cheapest in-stock size: Queen at ₹37,000, so 2 x = ₹74,000
+    await expect(page.getByText('₹74,000').first()).toBeVisible();
   });
 
   test('checkout shows server-calculated delivery and GST for a Telangana pincode', async ({ page }) => {
@@ -108,6 +114,84 @@ test.describe('Security', () => {
 
   test('cron endpoint needs the secret', async ({ request }) => {
     expect((await request.get('/api/cron/expire-orders')).status()).toBe(401);
+  });
+});
+
+test.describe('README MVP features', () => {
+  test('FAQ page has FAQPage JSON-LD', async ({ page }) => {
+    await page.goto('/faq');
+    await expect(page.locator('h1')).toContainText(/questions/i);
+    expect((await page.locator('script[type="application/ld+json"]').allTextContents()).join(' ')).toContain('FAQPage');
+  });
+
+  test('blog lists guides and an article has Article JSON-LD', async ({ page }) => {
+    await page.goto('/blog');
+    await page.getByRole('link', { name: /bed size/i }).first().click();
+    await expect(page).toHaveURL(/\/blog\//);
+    expect((await page.locator('script[type="application/ld+json"]').allTextContents()).join(' ')).toContain('"@type":"Article"');
+  });
+
+  test('account pages need login and keep the return path', async ({ page }) => {
+    await page.goto('/account/orders');
+    await expect(page).toHaveURL(/\/account\/login\?next=%2Faccount%2Forders/);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  });
+
+  test('wishlist and reviews need a logged-in customer', async ({ request }) => {
+    expect((await request.post('/api/wishlist', { data: { productId: 'x' } })).status()).toBe(401);
+    expect((await request.post('/api/reviews', { data: { productId: 'x', rating: 5, title: 'Nice', body: 'Very good bed' } })).status()).toBe(401);
+  });
+
+  test('search suggestions find products', async ({ request }) => {
+    const j = await (await request.get('/api/search/suggest?q=bed')).json();
+    expect(j.items.some((i: { slug: string }) => i.slug === 'sample-sheesham-king-bed')).toBeTruthy();
+  });
+
+  test('price filter narrows the shop and filtered pages are noindex', async ({ page }) => {
+    await page.goto('/shop?max=5000');
+    await expect(page.getByText('SAMPLE Wooden Stool')).toBeVisible();
+    await expect(page.getByText('SAMPLE Sheesham King Size Bed')).toHaveCount(0);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+  });
+
+  test('SAMPLE10 coupon is applied at checkout (10%, capped at Rs 2,000)', async ({ page }) => {
+    await page.goto('/product/sample-sheesham-king-bed');
+    await page.getByRole('button', { name: 'Add to cart' }).click();
+    await page.goto('/checkout');
+    await page.getByLabel('Pincode').fill('500001');
+    await expect(page.getByText(/IGST/)).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel('Coupon code').fill('sample10');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByText('Coupon discount')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('−₹2,000')).toBeVisible();
+  });
+
+  test('an unknown coupon shows an error', async ({ page }) => {
+    await page.goto('/product/sample-sheesham-king-bed');
+    await page.getByRole('button', { name: 'Add to cart' }).click();
+    await page.goto('/checkout');
+    await page.getByLabel('Pincode').fill('500001');
+    await page.getByLabel('Coupon code').fill('NOPE123');
+    await page.getByRole('button', { name: 'Apply' }).click();
+    await expect(page.getByText('This coupon code is not valid.')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('manual UPI order: QR on the order page, then UTR is accepted', async ({ page }) => {
+    test.skip(!process.env.UPI_VPA, 'set UPI_VPA (manual UPI mode) to run this test');
+    await page.goto('/product/sample-sheesham-stool');
+    await page.getByRole('button', { name: 'Add to cart' }).click();
+    await page.goto('/checkout');
+    await page.getByLabel('Full name').fill('E2E Test');
+    await page.getByLabel('Mobile number').fill('9876543210');
+    await page.getByLabel('Address', { exact: true }).fill('12 Test Street, Banjara Hills');
+    await page.getByLabel('Pincode').fill('500034');
+    await page.getByLabel('City').fill('Hyderabad');
+    await page.getByRole('button', { name: /Pay .* by UPI/ }).click();
+    await expect(page).toHaveURL(/\/order\//, { timeout: 15_000 });
+    await expect(page.getByAltText(/UPI QR code/)).toBeVisible();
+    await page.getByLabel(/UTR/).fill(String(Date.now()).slice(-12).padStart(12, '4'));
+    await page.getByRole('button', { name: 'I have paid' }).click();
+    await expect(page.getByText(/checking your payment/i)).toBeVisible({ timeout: 10_000 });
   });
 });
 

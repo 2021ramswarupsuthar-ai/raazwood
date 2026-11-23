@@ -1,42 +1,56 @@
 # Raazwood: E-commerce Website (Krishana Art Palace)
 
-> **Code status: Sprint 0 to 4 core built, plus assistant v1 and motion hero. Not yet run end-to-end against a real database / Razorpay.** See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
+> **Code status (23 Nov 2026): MVP from Sprints 0-5 is built and runs end-to-end on a local PostgreSQL database.** Typecheck, lint, 65 unit tests, 52 e2e runs (26 tests x desktop/mobile) and `next build` pass. Not yet tried with real Razorpay / MSG91 / Resend / WhatsApp accounts. See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
 
 ## Quick start (on your computer)
 
-Requirements: Node.js 22.18+ and a free Neon Postgres database.
+Requirements: **Node.js 22.18+** and **PostgreSQL** (Docker Desktop for the local database below, or a free Neon database).
 
 ```bash
 npm install
-cp .env.example .env.local      # then fill DATABASE_URL, DIRECT_URL, ADMIN_JWT_SECRET (openssl rand -base64 48)
-npx prisma migrate dev --name init   # creates the tables (commit the generated prisma/migrations folder)
-npm run db:seed                 # categories + SAMPLE products + admin user (ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD)
-npm run dev                     # http://localhost:3000   (admin: /admin)
-npm test                        # unit tests (no database needed)
-npm run typecheck && npm run lint
-npm run test:e2e                # Playwright (needs the seeded database)
+cp .env.example .env.local        # fill ADMIN_JWT_SECRET (openssl rand -base64 48), ADMIN_SEED_EMAIL, ADMIN_SEED_PASSWORD
+npm run db:up                     # local Postgres 16 in Docker on port 5433 (skip if you use Neon: put its URLs in .env.local)
+npm run db:migrate                # applies prisma/migrations to the database in .env.local
+npm run db:seed                   # categories, SAMPLE products, SAMPLE10 coupon, 2 SAMPLE guides, admin user
+npm run dev                       # http://localhost:3000   (admin: /admin, customer account: /account)
 ```
+
+Checks: `npm test` (unit, no database needed) · `npm run typecheck` · `npm run lint` · `npm run build` · `npm run test:e2e` (Playwright, needs the seeded database).
+
+All `db:*` scripts read `.env.local` (then `.env`) through `dotenv-cli`, because the Prisma CLI on its own only reads `.env`. After changing `prisma/schema.prisma`, run `npm run db:migrate -- --name <what-changed>` and commit the new folder in `prisma/migrations`.
+
+**Trying it locally without any accounts**
+- **Customer login:** with no SMS provider configured, `npm run dev` prints the one-time code in the terminal **and** shows it on the login page (development only; production refuses OTP login until MSG91 is set up).
+- **Payment:** with no Razorpay keys, set `UPI_VPA=anything@upi` in `.env.local` to use the manual UPI flow: the order page shows a QR code, you type any 12-digit number as the UTR, then confirm it in Admin > Orders. With Razorpay **test** keys the Razorpay window opens instead.
+- **Coupon:** `SAMPLE10` gives 10% off (max ₹2,000) on goods above ₹5,000.
+- **Messages:** order confirmations and status updates are printed in the terminal until Resend / MSG91 / WhatsApp are configured.
 
 Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dashboard add a webhook to `https://<your-domain>/api/webhooks/razorpay` with events `payment.captured`, `order.paid`, `payment.failed` and copy its secret to `RAZORPAY_WEBHOOK_SECRET`. For local testing expose localhost with a tunnel (ngrok / cloudflared).
 
-Deploy: push to GitHub, import into Vercel, add all env variables, set `DATABASE_URL`. Run `npx prisma migrate deploy` against the production database once.
+**Deploy (Vercel):** push to GitHub, import into Vercel, add every variable from `.env.example` (production values). The `vercel-build` script runs `prisma migrate deploy` before `next build`, so new migrations are applied on each deploy. `vercel.json` schedules the daily `/api/cron/expire-orders` job (set `CRON_SECRET`).
 
 ## Implementation status
 
 | Area | Status |
 |---|---|
-| Storefront: home, shop, category, product, search, cart, checkout, order tracking, invoice | Built |
+| Storefront: home, shop with filters (price, in stock), sorting and pagination, category pages, product, header search with suggestions, cart, checkout, order tracking, invoice | Built |
+| Customer accounts: phone OTP login (no password), profile, saved addresses, order history (earlier guest orders with the same phone are linked automatically), wishlist, checkout pre-fill. Guest checkout still allowed | Built. **Needs MSG91 DLT template for production SMS** |
+| Reviews: logged-in customers, one per product, "Verified purchase" badge, admin approval, AggregateRating JSON-LD | Built |
+| Coupons: percent (with cap) or flat, minimum order, dates, usage limit; GST recalculated on the discounted value; shown on invoice | Built, unit-tested |
 | UPI payment via Razorpay (create order, client verify, signed webhook, idempotent, amount check, late-payment handling) | Built, **needs Razorpay test-mode run** |
+| Manual UPI fallback (QR + `upi://` link, customer sends UTR, admin verifies, duplicate-UTR protection) | Built |
+| Notifications: order confirmed / shipped / delivered / cancelled / refunded by email (Resend), SMS (MSG91 Flow) and WhatsApp (Cloud API template) | Built, **needs real accounts and approved templates** |
 | GST: inclusive prices, CGST+SGST (Rajasthan) / IGST (other states), per-order invoice with FY numbering | Built, unit-tested. Rates/HSN to confirm with CA |
-| Pincode / state / delivery estimate / serviceability | Built (pincode to state is approximate; the customer-chosen state decides tax). Delivery days are **placeholders** in `src/config/store.ts` |
-| Stock reservation (30 min), release of expired orders (lazy + daily cron) | Built, **needs DB integration test** |
-| Admin: login, dashboard, products + variants ("Set of 2" via pack qty), orders + status flow | Built |
-| SEO: metadata, canonical, sitemap, robots, JSON-LD (Product, Breadcrumb, FAQ, Organization), South India city pages, noindex on private pages | Built |
-| Motion: intro logo animation (infinity into the two O's), scroll-driven table hero (top view to 3D front view), reveal animations, reduced-motion fallback | Built using pure CSS 3D + GSAP (README option C). Visual check done in a browser harness, **real scroll behaviour must be tried on a device** |
-| AI assistant v1: FAQ + product search + pincode answers, free Gemini tier + optional fallback provider, rule-based mode with no AI, PII redaction, rate/daily limits | Built (uses retrieval-then-answer, not a tool loop). **Needs real key test** |
+| Delivery zones per state (deliver / don't, delivery days, extra charge) editable in admin; pincode to state is approximate, the customer-chosen state decides tax | Built. Default delivery days in `src/config/store.ts` are **placeholders** |
+| Stock reservation (30 min Razorpay / 24 h manual UPI), release of expired orders (lazy + daily cron) | Built, **needs DB integration test** |
+| Admin: login, dashboard, products + variants ("Set of 2" via pack qty) + archive/restore, categories, orders + status flow + search, customers, coupons, reviews, blog, delivery zones, payments reconciliation (daily), CSV export (orders, products, customers), audit log | Built |
+| Content: blog / buying guides (Article JSON-LD), FAQ page (FAQPage JSON-LD), cookie consent (analytics only after consent) | Built. SAMPLE guides to replace |
+| SEO: metadata, canonical, sitemap (products, categories, guides, city pages), robots, JSON-LD (Product + ratings, Breadcrumb, FAQ, Article, Organization), South India city pages, noindex on private and filtered pages | Built |
+| Motion: intro logo animation (infinity into the two O's), scroll-driven table hero (top view to 3D front view), reveal animations, reduced-motion fallback | Built using pure CSS 3D + GSAP (§3A option C). **Real scroll behaviour must be tried on a device** |
+| AI assistant v1: FAQ + product search + pincode answers (uses admin delivery zones), free Gemini tier + optional fallback provider, rule-based mode with no AI, PII redaction, rate/daily limits | Built (retrieval-then-answer, not a tool loop). **Needs real key test** |
 | Static/legal pages (shipping, returns, privacy, terms) | **DRAFT templates with [placeholders]: owner and legal review required** |
-| Tests: 53 unit tests, Playwright e2e (written), CI workflow | Unit tests pass. e2e/CI **not yet run** |
-| Not built yet (backlog) | Manual UPI QR fallback, coupons, reviews, blog, customer accounts / phone OTP, email/WhatsApp notifications, image upload (use Cloudinary URLs for now), chat logs/feedback, strict CSP, shared (Redis) rate limiting, regional languages, real 3D model / 360 viewer |
+| Tests: 65 unit tests (node:test), 26 Playwright e2e tests (desktop + mobile), CI workflow with migration drift check | Unit and e2e pass locally (23 Nov 2026). CI on GitHub **not yet run** |
+| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, reviews with photos, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), image upload (paste Cloudinary URLs for now), strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
 
 Brand assets in `public/brand` were cut from the supplied PNG logos. A true vector (SVG) logo is still recommended.
 
@@ -44,8 +58,8 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 
 **by Krishana Art Palace** · Sheesham wood furniture · Online store (India)
 
-> Status: Planning → Sprint 0
-> Domain: `raazwood.<tld>` (to be purchased) · Hosting: Vercel (free tier)
+> The sections below are the original project plan. Where the build differs from the plan, the section says so ("**As built:**").
+> Domain: `raazwood.<tld>` (to be purchased) · Hosting: Vercel
 
 ---
 
@@ -66,12 +80,12 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 ## 1A. Confirmed Decisions (v2)
 
 - **Payments:** UPI via **Razorpay** (gateway, webhook-verified). Manual UPI QR kept only as a fallback.
-- **Market:** Pan-India delivery **including Rajasthan**. Primary audience / SEO focus: **South India** (Telangana, Andhra Pradesh, Karnataka, Tamil Nadu, Kerala). Serviceable states/pincodes are controlled from admin via `PincodeZone`.
+- **Market:** Pan-India delivery **including Rajasthan**. Primary audience / SEO focus: **South India** (Telangana, Andhra Pradesh, Karnataka, Tamil Nadu, Kerala). Serviceable states are controlled from admin via `DeliveryZone` (Admin > Delivery: per state deliver yes/no, delivery days, extra charge).
 - **Catalogue size:** ~50 products, ~100 listings (single piece + "Set of 2" bundles). Hard cap ~100 for launch.
 - **Tax:** GST-registered seller. Orders outside Rajasthan are interstate (**IGST**); orders within Rajasthan are intra-state (**CGST + SGST**). Tax type is decided automatically from the delivery state. Prices are shown **GST-inclusive**, and the system generates a tax invoice record for every order (needed for your accounts, Razorpay reconciliation and returns). Rates/HSN to be confirmed with your CA.
 - **Brand:** Logo supplied (hexagon tree mark + RAAZWOOD wordmark), brand colour `#AB8D69`. See §1B.
 - **Scale implication:** with only ~100 listings, no heavy search engine is needed. Postgres full-text search + category filters are enough. Most product pages can be statically generated (ISR), which is great for speed and SEO.
-- **Bundles:** "Set of 2" modelled as a variant with `packQty = 2` (own SKU, price, stock, weight, shipping), with its own SEO page or a variant selector on the main product page (decide in Sprint 1).
+- **Bundles:** "Set of 2" modelled as a variant with `packQty = 2` (own SKU, price, stock, weight, shipping), with its own SEO page or a variant selector on the main product page. **As built:** variant selector on the product page.
 
 ---
 
@@ -111,15 +125,15 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 | Backend / API | **Next.js Route Handlers + Server Actions (Node.js, TypeScript)** | Runs as Vercel serverless functions. One repo, one deploy, no separate server to pay for. Go/separate REST server is unnecessary at this scale. |
 | Database | **PostgreSQL on Neon** (via Vercel Marketplace) | Free tier, real relational DB (orders, stock, payments need transactions). |
 | ORM | **Prisma** (or Drizzle) | Type-safe queries, migrations. |
-| Images | **Cloudinary** (free tier) or **Bunny.net Storage + CDN** | Auto resize/WebP/AVIF. Bunny is cheap and fast but is pay-as-you-go (small minimum), not truly free — decide in Sprint 0. |
-| Auth | **Auth.js** — customers: phone OTP / email; admin: email + password (+2FA later) | Indian users prefer mobile OTP. Guest checkout allowed. |
-| Payments | **UPI** — see §6 | Abstracted behind a `PaymentProvider` interface. |
-| Styling | **Tailwind CSS + shadcn/ui** | Fast, accessible components. |
-| AI assistant | **Free-tier LLM API (default: Google Gemini API free tier)** behind a provider-agnostic adapter, Vercel AI SDK, tool calling + streaming | Customer help chat grounded in live catalogue and policies, at zero cost to start. See §3B. |
-| Animation / 3D | **GSAP + ScrollTrigger, Framer Motion, Lenis, three.js (R3F)** | Scroll-driven hero, logo intro, micro-interactions. See §3A. |
+| Images | **Cloudinary** (free tier) or **Bunny.net Storage + CDN** | Auto resize/WebP/AVIF. **As built:** admin pastes image URLs (Cloudinary allowed in `next.config.mjs`); an upload widget is a later item. |
+| Auth | Planned: Auth.js. **As built:** small custom auth with `jose` JWT cookies. Customers: phone OTP (MSG91), hashed codes, 30-day session. Admin: email + bcrypt password, 12 h session (2FA later) | Indian users prefer mobile OTP. Guest checkout allowed. Fewer moving parts than Auth.js for one OTP flow. |
+| Payments | **UPI** — see §6 | Razorpay (default) or manual UPI fallback, chosen by `PAYMENT_PROVIDER` / available keys (`src/server/payments-config.ts`). |
+| Styling | **Tailwind CSS** (shadcn/ui not used: a handful of custom components was enough) | Fast, accessible components. |
+| AI assistant | **Free-tier LLM API (default: Google Gemini API free tier)** behind a provider-agnostic adapter (`src/lib/ai/provider.ts`, plain `fetch`, no Vercel AI SDK). **As built:** retrieval-then-answer, no tool loop or streaming yet | Customer help chat grounded in live catalogue and policies, at zero cost to start. See §3B. |
+| Animation / 3D | Planned: GSAP + ScrollTrigger, Framer Motion, Lenis, three.js (R3F). **As built:** GSAP + CSS 3D transforms only | Scroll-driven hero, logo intro, micro-interactions. See §3A. |
 | Validation | **Zod** | Shared schemas for client + server. |
-| Email / SMS / WhatsApp | Resend (email), MSG91 / WhatsApp Cloud API (OTP, order updates) | Order confirmation + status updates. |
-| Monitoring | Vercel Analytics, Sentry (errors), Google Search Console, GA4 | |
+| Email / SMS / WhatsApp | Resend (email), MSG91 (OTP + order SMS), WhatsApp Cloud API (order updates) | Order confirmation + status updates. All optional; without them development prints messages to the console (`src/server/messaging.ts`). |
+| Monitoring | Vercel Analytics, Sentry (errors), Google Search Console, GA4 | **As built:** GA4 via `NEXT_PUBLIC_GA_ID`, loaded only after cookie consent. Sentry not added yet. |
 | CI/CD | GitHub + GitHub Actions + Vercel preview deployments | Every PR gets a preview URL. |
 
 > Free-tier limits change often. **Re-verify Neon / Vercel / Cloudinary / Bunny limits and Vercel's terms for commercial use before launch.** (Vercel's free Hobby plan is meant for non-commercial use; a business store may need the Pro plan — confirm in Sprint 0.)
@@ -321,31 +335,26 @@ Browser ──► Vercel Edge/CDN ──► Next.js (SSR / ISR / Route Handlers)
                            Email / SMS / WhatsApp
 ```
 
-### Suggested folder structure
+### Folder structure (as built)
 ```
 raazwood/
 ├─ src/
-│  ├─ app/
-│  │  ├─ (store)/            # public pages
-│  │  │  ├─ page.tsx
-│  │  │  ├─ [category]/page.tsx
-│  │  │  ├─ product/[slug]/page.tsx
-│  │  │  ├─ cart/ checkout/ order/[id]/
-│  │  │  └─ blog/[slug]/
-│  │  ├─ (admin)/admin/      # protected admin
-│  │  ├─ api/                # route handlers, webhooks
-│  │  ├─ sitemap.ts
-│  │  ├─ robots.ts
-│  │  └─ layout.tsx
-│  ├─ components/
-│  ├─ lib/                   # db, auth, payments, seo, utils
-│  ├─ server/                # services (orders, inventory, payments)
-│  ├─ schemas/               # zod
-│  └─ styles/
-├─ prisma/ (schema.prisma, migrations, seed.ts)
-├─ tests/ (unit, integration, e2e)
+│  ├─ app/                    # Next.js App Router
+│  │  ├─ page.tsx, shop/, c/[slug]/, product/[slug]/, cart/, checkout/, order/[publicId]/, invoice/[publicId]/
+│  │  ├─ account/             # customer: login (OTP), orders, addresses, wishlist, profile
+│  │  ├─ blog/, faq/, furniture-in/[city]/, legal pages
+│  │  ├─ admin/               # protected admin (middleware + requireAdmin in every page/action)
+│  │  ├─ api/                 # route handlers: checkout, quote, pincode, auth/otp, wishlist, reviews, search, webhooks, cron
+│  │  ├─ sitemap.ts, robots.ts, layout.tsx
+│  ├─ components/             # UI (server and client components)
+│  ├─ config/                 # store settings, states, cities, FAQ
+│  ├─ lib/                    # pure logic, unit-tested: money, tax, pricing, coupon, otp, csv, upi, seo, validators (zod)
+│  └─ server/                 # server-only services: db, orders, catalog, auth, otp, delivery zones, messaging, audit
+├─ prisma/ (schema.prisma, migrations/, seed.ts)
+├─ tests/ (unit/, e2e/)
 ├─ public/
-├─ .github/workflows/
+├─ docker-compose.yml         # local Postgres
+├─ .github/workflows/ci.yml
 └─ README.md
 ```
 
@@ -353,7 +362,9 @@ raazwood/
 
 ## 5. Data Model (core tables)
 
-`User`, `Address`, `Category`, `Product`, `ProductVariant` (size/finish/SKU/price/stock), `ProductImage`, `Cart`, `CartItem`, `Wishlist`, `Order`, `OrderItem`, `Payment`, `Shipment`, `Coupon`, `Review`, `BlogPost`, `AdminUser`, `AuditLog`, `PincodeZone` (serviceability + shipping rate), `ChatSession`, `ChatMessage`, `Handoff`/`Lead`, `KnowledgeArticle` (FAQs/policies for the assistant).
+**As built** (`prisma/schema.prisma`): `Customer` (phone login), `OtpCode`, `Address`, `WishlistItem`, `Category`, `Product` (images as URL list, `deletedAt` soft delete), `Variant` (size/pack/SKU/price/stock/delivery charge), `Order` (with coupon, payment method, UTR), `OrderItem` (price snapshot + discount share), `Payment`, `Coupon`, `Review`, `BlogPost`, `DeliveryZone` (the plan's `PincodeZone`, per state), `AdminUser`, `AuditLog`, `Counter` (invoice numbers).
+
+Not needed yet / later: `Cart` (the cart lives in the browser and is re-priced on the server), `Shipment` (status on the order for now), `ChatSession`, `ChatMessage`, `Handoff`/`Lead`, `KnowledgeArticle` (assistant v2).
 
 Rules:
 - Prices stored in **paise (integers)**, never floats.
@@ -374,12 +385,12 @@ Razorpay / Cashfree / PhonePe PG etc. Supports UPI intent, collect and QR; **aut
 Show UPI QR / `upi://pay` deep link with exact amount + order ID → customer pays → enters UTR → admin verifies in bank app/statement. Simple, but manual and error-prone at volume.
 
 Implementation requirements (both):
-- `PaymentProvider` interface: `createPayment()`, `verify()`, `handleWebhook()`, `refund()`
+- One code path per provider behind `paymentMode()`: Razorpay (create order, verify signature, webhook) and manual UPI (UTR + admin confirmation) share the same `finalizePaid()` step. Refunds are issued from the Razorpay dashboard or bank, then marked in admin.
 - Order created as `PENDING_PAYMENT`; only becomes `PAID` after verified confirmation (never trust the client redirect)
 - Webhook signature verification + idempotency keys (no double processing)
 - Payment timeout & retry flow; failed/abandoned handling
 - Amount tamper protection (server recalculates totals)
-- Daily reconciliation report in admin
+- Daily reconciliation report in admin (**built:** Admin > Payments)
 - Refund workflow documented in Returns policy
 
 ---
@@ -456,9 +467,9 @@ Each sprint: planning → build → test → demo → retro. Every sprint ends w
 
 | Type | Tool | Scope |
 |---|---|---|
-| Unit | Vitest | Price/GST/shipping calc, coupon logic, stock logic, utils |
-| Component | React Testing Library | Cart, forms, filters |
-| Integration | Vitest + test DB (Neon branch / Docker Postgres) | API routes, services, webhooks |
+| Unit | Node's built-in test runner (`node --test`, TypeScript via Node 22 type stripping) | Price/GST/shipping calc, coupon logic, OTP, CSV, UPI, validators, assistant rules |
+| Component | React Testing Library (not set up yet) | Cart, forms, filters |
+| Integration | Test DB (Docker Postgres from `docker-compose.yml`) — not automated yet | API routes, services, webhooks |
 | E2E | Playwright | Browse → cart → checkout → UPI (mock) → order; admin flows; mobile viewport |
 | Payment | Provider sandbox/test mode | Success, failure, timeout, duplicate webhook, tampered amount |
 | Accessibility | axe + Lighthouse | WCAG 2.1 AA target |
@@ -470,7 +481,7 @@ Each sprint: planning → build → test → demo → retro. Every sprint ends w
 | Cross-browser/device | Playwright (Chromium/Firefox/WebKit) + real Android/iPhone check | |
 | UAT | Owner walkthrough with checklist before each release | |
 
-CI pipeline (GitHub Actions): install → lint → typecheck → unit/integration → build → E2E on preview → Lighthouse CI.
+CI pipeline (GitHub Actions, `.github/workflows/ci.yml`): install → migrate → seed → typecheck → lint → unit → build + E2E (Playwright). Lighthouse CI is planned, not set up.
 
 Target: ≥ 80% coverage on business logic (pricing, orders, payments, inventory).
 
@@ -491,65 +502,21 @@ Target: ≥ 80% coverage on business logic (pricing, orders, payments, inventory
 
 ---
 
-## 11. Environment Variables (`.env.example`)
+## 11. Environment Variables
 
-```
-DATABASE_URL=
-DIRECT_URL=
-NEXTAUTH_URL=
-NEXTAUTH_SECRET=
-NEXT_PUBLIC_SITE_URL=https://raazwood.<tld>
-
-# Images
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-
-# Payments
-PAYMENT_PROVIDER=razorpay            # or manual_upi
-RAZORPAY_KEY_ID=
-RAZORPAY_KEY_SECRET=
-RAZORPAY_WEBHOOK_SECRET=
-UPI_VPA=                              # for manual UPI option
-UPI_PAYEE_NAME=Krishana Art Palace
-
-# Messaging
-RESEND_API_KEY=
-MSG91_AUTH_KEY=
-WHATSAPP_NUMBER=
-
-# AI assistant
-ASSISTANT_PROVIDER=gemini              # gemini | groq | openrouter | ...
-ASSISTANT_MODEL=                       # a free-tier model from the provider's current list
-GEMINI_API_KEY=                        # from Google AI Studio (free)
-ASSISTANT_FALLBACK_PROVIDER=
-ASSISTANT_FALLBACK_API_KEY=
-ASSISTANT_DAILY_REQUEST_CAP=           # stay under free-tier limits, then rule-based fallback
-TURNSTILE_SECRET_KEY=
-
-# Monitoring
-SENTRY_DSN=
-NEXT_PUBLIC_GA_ID=
-```
+`.env.example` is the single source of truth: it lists every variable the code reads, with comments. Copy it to `.env.local` for development and add the same names in Vercel for production. Only `DATABASE_URL`, `DIRECT_URL` and `ADMIN_JWT_SECRET` are required to run; payments, SMS, email, WhatsApp, analytics and AI are optional and switch on when their variables are set.
 
 ---
 
-## 12. Getting Started (after Sprint 0 setup)
+## 12. Getting Started
 
-```bash
-git clone <repo-url> && cd raazwood
-cp .env.example .env.local
-npm install
-npx prisma migrate dev
-npx prisma db seed
-npm run dev          # http://localhost:3000
-```
+See [Quick start](#quick-start-on-your-computer) at the top.
 
-Scripts: `dev` · `build` · `start` · `lint` · `typecheck` · `test` · `test:e2e` · `lighthouse` · `db:migrate` · `db:seed`
+Scripts: `dev` · `build` · `vercel-build` (migrate + build, used by Vercel) · `start` · `lint` · `typecheck` · `test` · `test:e2e` · `db:up` · `db:migrate` · `db:deploy` · `db:seed` · `db:studio`
 
 **Git workflow:** `main` (production) ← `develop` ← `feature/*`. Conventional commits (`feat:`, `fix:`, `chore:`). PRs require passing CI + 1 review (self-review checklist if solo).
 
-**Deploy:** push to `main` → Vercel production; PRs → preview URLs. DB migrations run via `prisma migrate deploy` in the build step.
+**Deploy:** push to `main` → Vercel production; PRs → preview URLs. `vercel-build` runs `prisma migrate deploy` before `next build`.
 
 ---
 

@@ -38,6 +38,7 @@ export function productJsonLd(p: {
   lowPaise: number;
   highPaise: number;
   inStock: boolean;
+  rating?: { average: number; count: number; reviews?: { author: string; rating: number; title: string; body: string; date: Date }[] };
 }) {
   const url = abs(`/product/${p.slug}`);
   const offer = (price: number) => ({
@@ -69,6 +70,36 @@ export function productJsonLd(p: {
             availability: p.inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             url,
           },
+    // Only real, approved customer reviews are ever included (Google penalises self-serving or fake ratings).
+    ...(p.rating && p.rating.count > 0
+      ? {
+          aggregateRating: { '@type': 'AggregateRating', ratingValue: p.rating.average.toFixed(1), reviewCount: p.rating.count, bestRating: 5, worstRating: 1 },
+          review: (p.rating.reviews ?? []).slice(0, 5).map((r) => ({
+            '@type': 'Review',
+            author: { '@type': 'Person', name: r.author },
+            reviewRating: { '@type': 'Rating', ratingValue: r.rating, bestRating: 5 },
+            name: r.title,
+            reviewBody: r.body,
+            datePublished: r.date.toISOString().slice(0, 10),
+          })),
+        }
+      : {}),
+  };
+}
+
+export function articleJsonLd(a: { title: string; slug: string; description: string; image?: string | null; published: Date; modified: Date }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: a.title,
+    description: a.description,
+    url: abs(`/blog/${a.slug}`),
+    mainEntityOfPage: abs(`/blog/${a.slug}`),
+    image: a.image ? [a.image.startsWith('http') ? a.image : abs(a.image)] : [abs('/og-default.png')],
+    datePublished: a.published.toISOString(),
+    dateModified: a.modified.toISOString(),
+    author: { '@type': 'Organization', name: STORE.name, url: SITE_URL },
+    publisher: { '@type': 'Organization', name: STORE.name, logo: { '@type': 'ImageObject', url: abs('/brand/logo-full.png') } },
   };
 }
 

@@ -8,6 +8,12 @@ export const limiters = {
   verify: createLimiter({ windowMs: 60_000, max: 20 }),
   assistant: createLimiter({ windowMs: 60_000, max: 10 }),
   login: createLimiter({ windowMs: 15 * 60_000, max: 8 }),
+  otpSend: createLimiter({ windowMs: 15 * 60_000, max: 10 }),
+  otpVerify: createLimiter({ windowMs: 15 * 60_000, max: 25 }),
+  search: createLimiter({ windowMs: 60_000, max: 60 }),
+  review: createLimiter({ windowMs: 60 * 60_000, max: 10 }),
+  wishlist: createLimiter({ windowMs: 60_000, max: 40 }),
+  utr: createLimiter({ windowMs: 15 * 60_000, max: 10 }),
 };
 
 export function clientIp(req: Request): string {

@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import QRCode from 'qrcode';
 import OrderPoller from '@/components/OrderPoller';
+import ManualUpiPay from '@/components/ManualUpiPay';
 import { getOrderByPublicId } from '@/server/orders';
+import { manualUpi } from '@/server/payments-config';
 import { formatINR } from '@/lib/money';
+import { upiPayLink } from '@/lib/upi';
 import { STATUS_LABEL, isPaidStatus, type Status } from '@/lib/order-status';
 import { stateByCode } from '@/config/states';
 import { STORE } from '@/config/store';
@@ -18,23 +22,40 @@ export default async function OrderPage({ params }: { params: Promise<{ publicId
   const status = o.status as Status;
   const paid = isPaidStatus(status);
   const pending = status === 'PENDING_PAYMENT';
+  const manual = o.paymentMethod === 'MANUAL_UPI';
   const wa = `https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent(`Hello Raazwood, my order ${o.publicId}`)}`;
+
+  let upi: { link: string; qr: string; vpa: string; payeeName: string } | null = null;
+  if (manual && pending && !o.utrSubmittedAt) {
+    const cfg = manualUpi();
+    const link = upiPayLink({ vpa: cfg.vpa, payeeName: cfg.payeeName, amountPaise: o.totalPaise, note: `Raazwood order ${o.publicId.slice(0, 10)}`, ref: o.publicId });
+    upi = { link, qr: await QRCode.toDataURL(link, { margin: 1, width: 400, color: { dark: '#2B2118', light: '#FFFFFF' } }), vpa: cfg.vpa, payeeName: cfg.payeeName };
+  }
+
+  const heading = paid ? 'Thank you! Your order is confirmed'
+    : pending && manual ? (o.utrSubmittedAt ? 'Payment received for checking' : 'Complete your UPI payment')
+    : pending ? 'Confirming your payment…'
+    : `Order ${STATUS_LABEL[status].toLowerCase()}`;
 
   return (
     <div className="container-x max-w-3xl py-12">
-      {pending && <OrderPoller publicId={o.publicId} />}
+      {pending && !manual && <OrderPoller publicId={o.publicId} />}
       <p className="eyebrow">Order</p>
-      <h1 className="h-display mt-2 text-4xl md:text-5xl">{paid ? 'Thank you! Your order is confirmed' : pending ? 'Confirming your payment…' : `Order ${STATUS_LABEL[status].toLowerCase()}`}</h1>
+      <h1 className="h-display mt-2 text-4xl md:text-5xl">{heading}</h1>
       <p className="mt-3 text-ink/70">
         {paid && 'We have received your payment and will start processing your order. We will contact you on your mobile number for delivery updates.'}
-        {pending && 'This usually takes a few seconds. If you have already paid, please keep this page open. It will update automatically.'}
+        {pending && !manual && 'This usually takes a few seconds. If you have already paid, please keep this page open. It will update automatically.'}
         {!paid && !pending && 'If you think this is a mistake, please contact us on WhatsApp with your order reference.'}
       </p>
+
+      {pending && manual && (
+        <ManualUpiPay publicId={o.publicId} amount={formatINR(o.totalPaise)} vpa={upi?.vpa ?? ''} payeeName={upi?.payeeName ?? ''} link={upi?.link ?? ''} qrDataUrl={upi?.qr ?? ''} expiresAt={o.expiresAt.toISOString()} utrSubmitted={Boolean(o.utrSubmittedAt)} />
+      )}
 
       <div className="mt-8 rounded-2xl bg-white p-6 shadow-card ring-1 ring-line/70">
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
           <div><dt className="text-ink/60">Order reference</dt><dd className="break-all font-mono font-semibold">{o.publicId}</dd></div>
-          <div><dt className="text-ink/60">Status</dt><dd className="font-semibold">{STATUS_LABEL[status]}</dd></div>
+          <div><dt className="text-ink/60">Status</dt><dd className="font-semibold">{STATUS_LABEL[status]}{pending && o.utrSubmittedAt ? ' (UTR received)' : ''}</dd></div>
           {o.invoiceNo && <div><dt className="text-ink/60">Invoice</dt><dd className="font-semibold">{o.invoiceNo}</dd></div>}
           <div><dt className="text-ink/60">Deliver to</dt><dd>{o.customerName}, {o.addressLine1}{o.addressLine2 ? `, ${o.addressLine2}` : ''}, {o.city}, {stateByCode(o.stateCode)?.name} {o.pincode}</dd></div>
         </dl>
@@ -43,8 +64,9 @@ export default async function OrderPage({ params }: { params: Promise<{ publicId
         </ul>
         <dl className="mt-4 space-y-1.5 border-t border-line pt-4 text-sm">
           <div className="flex justify-between"><dt>Items</dt><dd>{formatINR(o.goodsTotalPaise)}</dd></div>
+          {o.discountPaise > 0 && <div className="flex justify-between text-green-800"><dt>Coupon {o.couponCode}</dt><dd>−{formatINR(o.discountPaise)}</dd></div>}
           <div className="flex justify-between"><dt>Delivery</dt><dd>{o.shippingPaise === 0 ? 'Free' : formatINR(o.shippingPaise)}</dd></div>
-          <div className="flex justify-between text-base font-semibold"><dt>Total paid (incl. GST)</dt><dd>{formatINR(o.totalPaise)}</dd></div>
+          <div className="flex justify-between text-base font-semibold"><dt>{paid ? 'Total paid' : 'Total'} (incl. GST)</dt><dd>{formatINR(o.totalPaise)}</dd></div>
         </dl>
       </div>
 
@@ -53,7 +75,7 @@ export default async function OrderPage({ params }: { params: Promise<{ publicId
         <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">Message us on WhatsApp</a>
         <Link href="/shop" className="btn btn-ghost">Continue shopping</Link>
       </div>
-      <p className="mt-4 text-xs text-ink/60">Save this page&apos;s link: it is your order tracking link.</p>
+      <p className="mt-4 text-xs text-ink/60">Save this page&apos;s link: it is your order tracking link. With an account, all your orders are under <Link href="/account/orders" className="underline">My account</Link>.</p>
     </div>
   );
 }

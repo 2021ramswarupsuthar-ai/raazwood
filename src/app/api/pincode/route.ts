@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
-import { deliveryWindow, guessStateFromPincode, isServiceable, isValidPincode } from '@/lib/pincode';
+import { guessStateFromPincode, isValidPincode } from '@/lib/pincode';
 import { stateByCode } from '@/config/states';
-import { SERVICEABLE_STATES } from '@/config/store';
+import { DELIVERY_DAYS, SERVICEABLE_STATES } from '@/config/store';
+import { getZone } from '@/server/delivery';
 
 export const dynamic = 'force-dynamic';
 
-export function GET(req: Request) {
+export async function GET(req: Request) {
   const pin = new URL(req.url).searchParams.get('pin') ?? '';
   if (!isValidPincode(pin)) return NextResponse.json({ valid: false });
   const code = guessStateFromPincode(pin);
-  const state = code ? stateByCode(code) : undefined;
-  const serviceable = code ? isServiceable(code) : SERVICEABLE_STATES === 'ALL';
-  const w = deliveryWindow(code ?? 'XX');
-  return NextResponse.json({ valid: true, serviceable, stateCode: code, stateName: state?.name ?? null, minDays: w.min, maxDays: w.max });
+  if (!code) {
+    // unknown circle: be honest that the state decides, and fall back to the general estimate
+    return NextResponse.json({ valid: true, serviceable: SERVICEABLE_STATES === 'ALL', stateCode: null, stateName: null, minDays: DELIVERY_DAYS.other.min, maxDays: DELIVERY_DAYS.other.max });
+  }
+  const z = await getZone(code);
+  return NextResponse.json({ valid: true, serviceable: z.serviceable, stateCode: code, stateName: stateByCode(code)?.name ?? null, minDays: z.minDays, maxDays: z.maxDays });
 }

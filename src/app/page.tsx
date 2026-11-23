@@ -8,15 +8,12 @@ import PincodeChecker from '@/components/PincodeChecker';
 import JsonLd from '@/components/JsonLd';
 import { getCategories, listProducts } from '@/server/catalog';
 import { faqJsonLd } from '@/lib/seo';
+import { FAQS } from '@/config/faq';
 
 export const revalidate = 3600;
 
-const FAQ = [
-  { q: 'Is your furniture made of solid sheesham wood?', a: 'Yes. Our furniture is made from sheesham (Indian rosewood). Each product page lists its exact material and finish.' },
-  { q: 'Do you deliver across India?', a: 'Yes. Enter your pincode to see the delivery charge and estimated delivery time for your location.' },
-  { q: 'How can I pay?', a: 'You can pay securely by UPI (Google Pay, PhonePe, Paytm and more) through Razorpay at checkout.' },
-  { q: 'Can I order a custom size?', a: 'For custom sizes or bulk orders, message us on WhatsApp and we will share options.' },
-];
+const FAQ = FAQS.slice(0, 4).concat(FAQS.filter((f) => f.q.startsWith('How can I pay')));
+
 
 const POINTS = [
   { t: 'Solid sheesham wood', d: 'Real wood, not veneer-on-board. Each piece lists its material, finish and dimensions.' },
@@ -109,6 +106,7 @@ export default async function Home() {
             </details>
           ))}
         </div>
+        <p className="mt-6 text-center"><Link href="/faq" className="btn btn-ghost">All questions</Link></p>
       </section>
       <JsonLd data={faqJsonLd(FAQ)} />
     </>

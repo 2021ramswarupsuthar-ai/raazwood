@@ -9,6 +9,8 @@ import { productFormSchema, variantFormSchema } from '@/lib/validators';
 import { canTransition, type Status } from '@/lib/order-status';
 import { toPaise } from '@/lib/money';
 import { slugify } from '@/lib/seo';
+import { audit } from '@/server/audit';
+import { notifyOrderStatus } from '@/server/notify';
 
 const lines = (v: FormDataEntryValue | null) => String(v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
 const bounce = (path: string, msg: string): never => redirect(`${path}?error=${encodeURIComponent(msg)}`);
@@ -52,12 +54,13 @@ function parseProduct(fd: FormData) {
 }
 
 export async function createProductAction(fd: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { parsed, images, features } = parseProduct(fd);
   if (!parsed.success) bounce('/admin/products/new', parsed.error.issues[0].path.join('.') + ': ' + parsed.error.issues[0].message);
   const d = parsed.data!;
   try {
     const p = await prisma.product.create({ data: { ...d, images, features } });
+    await audit(admin.email, 'product.create', 'Product', p.id, { name: p.name, slug: p.slug });
     revalidatePath('/', 'layout');
     redirect(`/admin/products/${p.id}?saved=1`);
   } catch (e) {
@@ -67,11 +70,12 @@ export async function createProductAction(fd: FormData) {
 }
 
 export async function updateProductAction(id: string, fd: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const { parsed, images, features } = parseProduct(fd);
   if (!parsed.success) bounce(`/admin/products/${id}`, parsed.error.issues[0].path.join('.') + ': ' + parsed.error.issues[0].message);
   try {
     await prisma.product.update({ where: { id }, data: { ...parsed.data!, images, features } });
+    await audit(admin.email, 'product.update', 'Product', id, { name: parsed.data!.name, isActive: parsed.data!.isActive });
   } catch {
     bounce(`/admin/products/${id}`, 'Could not save (is the slug already used?)');
   }
@@ -80,15 +84,18 @@ export async function updateProductAction(id: string, fd: FormData) {
 }
 
 export async function saveVariantAction(productId: string, variantId: string | null, fd: FormData) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const parsed = variantFormSchema.safeParse(Object.fromEntries(fd.entries()));
   if (!parsed.success) bounce(`/admin/products/${productId}`, parsed.error.issues[0].path.join('.') + ': ' + parsed.error.issues[0].message);
   const v = parsed.data!;
   if (v.priceRupees > v.mrpRupees) bounce(`/admin/products/${productId}`, 'Selling price cannot be higher than MRP');
   const data = { sku: v.sku, label: v.label, packQty: v.packQty, mrpPaise: toPaise(v.mrpRupees), pricePaise: toPaise(v.priceRupees), stock: v.stock, shippingPaise: toPaise(v.shippingRupees) };
   try {
+    const before = variantId ? await prisma.variant.findUnique({ where: { id: variantId }, select: { pricePaise: true, mrpPaise: true, stock: true } }) : null;
     if (variantId) await prisma.variant.update({ where: { id: variantId }, data });
     else await prisma.variant.create({ data: { ...data, productId } });
+    // price and stock changes are what the README asks to audit
+    await audit(admin.email, variantId ? 'variant.update' : 'variant.create', 'Variant', variantId, { productId, sku: data.sku, before, after: { pricePaise: data.pricePaise, mrpPaise: data.mrpPaise, stock: data.stock } });
   } catch {
     bounce(`/admin/products/${productId}`, 'Could not save variant (is the SKU already used?)');
   }
@@ -97,15 +104,30 @@ export async function saveVariantAction(productId: string, variantId: string | n
 }
 
 export async function updateOrderStatusAction(orderId: string, to: Status) {
-  await requireAdmin();
-  await prisma.$transaction(async (tx) => {
+  const admin = await requireAdmin();
+  const from = await prisma.$transaction(async (tx) => {
     const o = await tx.order.findUnique({ where: { id: orderId }, include: { items: true } });
-    if (!o || !canTransition(o.status as Status, to)) return;
+    if (!o || !canTransition(o.status as Status, to)) return null;
     const r = await tx.order.updateMany({ where: { id: orderId, status: o.status }, data: { status: to } });
-    if (r.count === 1 && o.status === 'PENDING_PAYMENT' && to === 'CANCELLED') {
+    if (r.count !== 1) return null;
+    if (o.status === 'PENDING_PAYMENT' && to === 'CANCELLED') {
       for (const it of o.items) await tx.variant.update({ where: { id: it.variantId }, data: { stock: { increment: it.qty } } });
     }
+    return o.status;
   });
+  if (from) {
+    await audit(admin.email, 'order.status', 'Order', orderId, { from, to });
+    if (from !== 'PENDING_PAYMENT') await notifyOrderStatus(orderId, to); // nothing to tell for an unpaid order
+  }
   revalidatePath(`/admin/orders/${orderId}`);
   redirect(`/admin/orders/${orderId}`);
+}
+
+/** Soft delete (README §5): hidden everywhere, kept for old orders and invoices. Can be restored. */
+export async function archiveProductAction(id: string, archive: boolean) {
+  const admin = await requireAdmin();
+  await prisma.product.update({ where: { id }, data: archive ? { deletedAt: new Date(), isActive: false } : { deletedAt: null } });
+  await audit(admin.email, archive ? 'product.archive' : 'product.restore', 'Product', id);
+  revalidatePath('/', 'layout');
+  redirect(archive ? '/admin/products?archived=1' : `/admin/products/${id}?saved=1`);
 }
