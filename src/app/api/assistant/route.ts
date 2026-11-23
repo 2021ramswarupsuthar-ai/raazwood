@@ -3,8 +3,11 @@ import { z } from 'zod';
 import { answer } from '@/lib/ai/assistant';
 import { providersFromEnv } from '@/lib/ai/provider';
 import { rankProducts } from '@/lib/ai/rules';
-import { deliveryWindow, guessStateFromPincode, isServiceable, isValidPincode } from '@/lib/pincode';
+import { guessStateFromPincode, isValidPincode } from '@/lib/pincode';
 import { listProducts } from '@/server/catalog';
+import { getAllZones, type Zone } from '@/server/delivery';
+import { STATES } from '@/config/states';
+import { SERVICEABLE_STATES } from '@/config/store';
 import { clientIp, jsonError, limiters, tooMany } from '@/server/http';
 
 export const dynamic = 'force-dynamic';
@@ -29,6 +32,13 @@ async function catalog() {
   return cache.items;
 }
 
+// Delivery zones (admin-editable) cached like the catalogue, so the assistant gives the same answer as checkout.
+let zoneCache: { at: number; zones: Map<string, Zone> } | null = null;
+async function zones() {
+  if (!zoneCache || Date.now() - zoneCache.at > 5 * 60_000) zoneCache = { at: Date.now(), zones: await getAllZones(STATES.map((s) => s.code)) };
+  return zoneCache.zones;
+}
+
 export async function POST(req: Request) {
   const rl = limiters.assistant.check(clientIp(req));
   if (!rl.ok) return tooMany(rl.retryAfterMs);
@@ -37,6 +47,7 @@ export async function POST(req: Request) {
 
   const providers = underDailyCap() ? providersFromEnv() : []; // over the cap: rule-based mode only
   try {
+    const zoneMap = await zones().catch(() => new Map<string, Zone>());
     const result = await answer(parsed.data.messages, {
       providers,
       searchProducts: async (q) => {
@@ -46,8 +57,9 @@ export async function POST(req: Request) {
       pincodeInfo: (pin) => {
         if (!isValidPincode(pin)) return null;
         const st = guessStateFromPincode(pin);
-        const w = deliveryWindow(st ?? 'XX');
-        return { serviceable: st ? isServiceable(st) : true, minDays: w.min, maxDays: w.max };
+        const z = st ? zoneMap.get(st) : undefined;
+        if (z) return { serviceable: z.serviceable, minDays: z.minDays, maxDays: z.maxDays };
+        return { serviceable: SERVICEABLE_STATES === 'ALL', minDays: 8, maxDays: 14 };
       },
     });
     return NextResponse.json(result);

@@ -53,7 +53,7 @@ export default function CartView() {
           <div className="flex justify-between text-ink/60"><dt>Delivery</dt><dd>Calculated at checkout</dd></div>
         </dl>
         <Link href="/checkout" className="btn btn-primary mt-6 w-full">Proceed to checkout</Link>
-        <p className="mt-3 text-center text-xs text-ink/60">Secure UPI payment via Razorpay</p>
+        <p className="mt-3 text-center text-xs text-ink/60">Pay securely with any UPI app</p>
       </aside>
     </div>
   );

@@ -21,16 +21,21 @@ jobs:
       ADMIN_SEED_PASSWORD: ci-password-123
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
       CRON_SECRET: ci-cron-secret
+      # manual UPI mode lets e2e place a real order without Razorpay
+      UPI_VPA: ci-test@upi
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npx prisma db push --skip-generate
+      - run: npx prisma migrate deploy
       - run: npm run db:seed
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # fail if schema.prisma was changed without a migration (uses a separate, throw-away shadow database)
+      - run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE shadow'
+      - run: npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url postgresql://postgres:postgres@localhost:5432/shadow --exit-code || (echo "schema.prisma has changes without a migration. Run npm run db:migrate" && exit 1)
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

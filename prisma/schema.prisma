@@ -19,6 +19,22 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum PaymentMethod {
+  RAZORPAY
+  MANUAL_UPI
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CouponKind {
+  PERCENT
+  FLAT
+}
+
 enum TaxKind {
   INTRA
   INTER
@@ -37,27 +53,30 @@ model Category {
 }
 
 model Product {
-  id          String    @id @default(cuid())
-  slug        String    @unique
-  name        String
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id])
-  shortDesc   String    @default("")
-  description String    @default("")
-  material    String    @default("Solid sheesham wood")
-  finish      String    @default("")
-  dimensions  String    @default("")
-  features    String[]  @default([])
-  images      String[]  @default([])
-  hsn         String    @default("9403")
-  gstRate     Int       @default(18)
-  seoTitle    String?
-  seoDesc     String?
-  isActive    Boolean   @default(true)
-  isFeatured  Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  variants    Variant[]
+  id           String         @id @default(cuid())
+  slug         String         @unique
+  name         String
+  categoryId   String
+  category     Category       @relation(fields: [categoryId], references: [id])
+  shortDesc    String         @default("")
+  description  String         @default("")
+  material     String         @default("Solid sheesham wood")
+  finish       String         @default("")
+  dimensions   String         @default("")
+  features     String[]       @default([])
+  images       String[]       @default([])
+  hsn          String         @default("9403")
+  gstRate      Int            @default(18)
+  seoTitle     String?
+  seoDesc      String?
+  isActive     Boolean        @default(true)
+  isFeatured   Boolean        @default(false)
+  deletedAt    DateTime? // soft delete: archived products are hidden everywhere and kept for old orders
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  variants     Variant[]
+  reviews      Review[]
+  wishlistedBy WishlistItem[]
 
   @@index([categoryId, isActive])
 }
@@ -81,9 +100,11 @@ model Variant {
 }
 
 model Order {
-  id                String      @id @default(cuid())
-  publicId          String      @unique
-  status            OrderStatus @default(PENDING_PAYMENT)
+  id                String        @id @default(cuid())
+  publicId          String        @unique
+  status            OrderStatus   @default(PENDING_PAYMENT)
+  customerId        String?
+  customer          Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   customerName      String
   phone             String
   email             String?
@@ -94,26 +115,32 @@ model Order {
   pincode           String
   notes             String?
   taxKind           TaxKind
-  goodsTotalPaise   Int
+  goodsTotalPaise   Int // before coupon discount, incl. GST
+  discountPaise     Int           @default(0)
+  couponCode        String?
   shippingPaise     Int
   totalPaise        Int
   taxablePaise      Int
-  cgstPaise         Int         @default(0)
-  sgstPaise         Int         @default(0)
-  igstPaise         Int         @default(0)
-  razorpayOrderId   String?     @unique
+  cgstPaise         Int           @default(0)
+  sgstPaise         Int           @default(0)
+  igstPaise         Int           @default(0)
+  paymentMethod     PaymentMethod @default(RAZORPAY)
+  razorpayOrderId   String?       @unique
   razorpayPaymentId String?
-  invoiceNo         String?     @unique
+  upiUtr            String? // manual UPI: reference number typed by the customer, verified by admin
+  utrSubmittedAt    DateTime?
+  invoiceNo         String?       @unique
   invoiceDate       DateTime?
   expiresAt         DateTime
   paidAt            DateTime?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
   items             OrderItem[]
   payments          Payment[]
 
   @@index([status, createdAt])
   @@index([phone])
+  @@index([customerId])
 }
 
 model OrderItem {
@@ -129,7 +156,8 @@ model OrderItem {
   gstRate        Int
   unitPricePaise Int
   qty            Int
-  lineTotalPaise Int
+  lineTotalPaise Int // before discount
+  discountPaise  Int     @default(0) // share of the order coupon allocated to this line
 
   @@index([orderId])
 }
@@ -159,4 +187,134 @@ model AdminUser {
 model Counter {
   key   String @id
   value Int    @default(0)
+}
+
+// ---------- Customers (phone OTP login; guest checkout still allowed) ----------
+model Customer {
+  id          String         @id @default(cuid())
+  phone       String         @unique // 10 digits, no country code
+  name        String         @default("")
+  email       String?
+  createdAt   DateTime       @default(now())
+  lastLoginAt DateTime?
+  addresses   Address[]
+  orders      Order[]
+  wishlist    WishlistItem[]
+  reviews     Review[]
+}
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  phone     String
+  codeHash  String // HMAC of phone + code, never the code itself
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([phone, createdAt])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  stateCode  String
+  pincode    String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, productId])
+}
+
+model Review {
+  id         String       @id @default(cuid())
+  productId  String
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rating     Int // 1-5
+  title      String
+  body       String
+  authorName String
+  city       String?
+  verified   Boolean      @default(false) // customer has a paid order for this product
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  @@unique([productId, customerId])
+  @@index([productId, status])
+}
+
+model Coupon {
+  id               String     @id @default(cuid())
+  code             String     @unique // stored upper-case
+  description      String     @default("")
+  kind             CouponKind
+  value            Int // PERCENT: whole percent (1-90). FLAT: paise
+  minOrderPaise    Int        @default(0)
+  maxDiscountPaise Int? // cap for PERCENT coupons
+  startsAt         DateTime?
+  endsAt           DateTime?
+  usageLimit       Int? // total paid orders allowed
+  usedCount        Int        @default(0)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+}
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  excerpt     String    @default("")
+  body        String // plain text: blank line = new paragraph, "## " = heading, "- " = bullet
+  coverImage  String?
+  seoTitle    String?
+  seoDesc     String?
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isPublished, publishedAt])
+}
+
+// Serviceability and delivery promise per state (README: "PincodeZone"). A missing row falls back to the
+// defaults in src/config/store.ts (SERVICEABLE_STATES env + DELIVERY_DAYS).
+model DeliveryZone {
+  stateCode          String   @id
+  serviceable        Boolean  @default(true)
+  minDays            Int
+  maxDays            Int
+  extraShippingPaise Int      @default(0) // added once per order on top of per-item delivery charges
+  updatedAt          DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String // admin email
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
 }

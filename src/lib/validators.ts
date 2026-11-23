@@ -30,6 +30,8 @@ export const checkoutSchema = z.object({
     pincode: z.string().refine(isValidPincode, 'Enter a valid 6-digit pincode'),
   }),
   notes: z.string().trim().max(300).optional().or(z.literal('')),
+  couponCode: z.string().trim().max(30).optional().or(z.literal('')),
+  saveAddress: z.boolean().optional(),
 });
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 
@@ -37,6 +39,70 @@ export const quoteSchema = z.object({
   items: cartSchema,
   stateCode: z.string().refine((s) => stateCodes.includes(s.toUpperCase())),
   pincode: z.string().refine(isValidPincode),
+  couponCode: z.string().trim().max(30).optional().or(z.literal('')),
+});
+
+const mobile = z
+  .string()
+  .transform((v) => v.replace(/[\s-]/g, ''))
+  .pipe(z.string().regex(/^(?:\+?91)?[6-9][0-9]{9}$/, 'Enter a valid 10-digit Indian mobile number'));
+
+export const addressSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  phone: mobile,
+  line1: z.string().trim().min(5).max(150),
+  line2: z.string().trim().max(150).optional().or(z.literal('')),
+  city: z.string().trim().min(2).max(60),
+  stateCode: z.string().refine((s) => stateCodes.includes(s.toUpperCase()), 'Select a valid state'),
+  pincode: z.string().refine(isValidPincode, 'Enter a valid 6-digit pincode'),
+  isDefault: z.boolean().optional(),
+});
+
+export const profileSchema = z.object({
+  name: z.string().trim().min(2, 'Enter your name').max(80),
+  email: z.string().trim().email('Enter a valid email').max(120).optional().or(z.literal('')),
+});
+
+export const reviewSchema = z.object({
+  productId: z.string().min(1).max(50),
+  rating: z.number().int().min(1).max(5),
+  title: z.string().trim().min(3, 'Add a short title').max(80),
+  body: z.string().trim().min(10, 'Tell us a little more (at least 10 characters)').max(1500),
+  city: z.string().trim().max(60).optional().or(z.literal('')),
+});
+
+export const couponFormSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,24}$/, '3-24 letters, numbers, - or _'),
+  description: z.string().trim().max(200),
+  kind: z.enum(['PERCENT', 'FLAT']),
+  value: z.coerce.number().positive(),
+  minOrderRupees: z.coerce.number().min(0).max(10_000_000),
+  maxDiscountRupees: z.coerce.number().min(0).max(10_000_000).optional(),
+  startsAt: z.string().optional(),
+  endsAt: z.string().optional(),
+  usageLimit: z.coerce.number().int().min(1).max(1_000_000).optional(),
+  isActive: z.boolean(),
+});
+
+export const categoryFormSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase letters, numbers and hyphens only').max(60),
+  description: z.string().trim().max(500),
+  image: z.string().trim().max(500).refine((u) => u === '' || /^(https:\/\/|\/)/.test(u), 'Image must be an https:// URL or a /path').optional(),
+  sortOrder: z.coerce.number().int().min(0).max(999),
+  seoTitle: z.string().trim().max(70).optional(),
+  seoDesc: z.string().trim().max(170).optional(),
+});
+
+export const blogFormSchema = z.object({
+  title: z.string().trim().min(5).max(120),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase letters, numbers and hyphens only').max(120),
+  excerpt: z.string().trim().max(300),
+  body: z.string().trim().min(20).max(30_000),
+  coverImage: z.string().trim().max(500).refine((u) => u === '' || /^(https:\/\/|\/)/.test(u), 'Image must be an https:// URL or a /path').optional(),
+  seoTitle: z.string().trim().max(70).optional(),
+  seoDesc: z.string().trim().max(170).optional(),
+  isPublished: z.boolean(),
 });
 
 export const verifySchema = z.object({

@@ -2,13 +2,17 @@ import Link from 'next/link';
 import { requireAdmin } from '@/server/admin-auth';
 import { prisma } from '@/server/db';
 import { formatINR } from '@/lib/money';
+import { DownloadLink } from '@/components/AdminUi';
 
-export default async function Products() {
+export default async function Products({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
   await requireAdmin();
-  const products = await prisma.product.findMany({ include: { category: true, variants: true }, orderBy: { createdAt: 'desc' } });
+  const { archived } = await searchParams;
+  const showArchived = archived === 'show';
+  const products = await prisma.product.findMany({ where: { deletedAt: showArchived ? { not: null } : null }, include: { category: true, variants: true }, orderBy: { createdAt: 'desc' } });
   return (
     <div>
-      <div className="flex items-center justify-between"><h1 className="font-display text-4xl font-semibold">Products ({products.length})</h1><Link href="/admin/products/new" className="btn btn-primary">Add product</Link></div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-4xl font-semibold">{showArchived ? 'Archived products' : 'Products'} ({products.length})</h1><div className="flex gap-2"><DownloadLink href="/admin/export/products">Export CSV</DownloadLink><Link href="/admin/products/new" className="btn btn-primary">Add product</Link></div></div>
+      <p className="mt-2 text-sm">{showArchived ? <Link href="/admin/products" className="text-brand-dark underline">← Active products</Link> : <Link href="/admin/products?archived=show" className="text-brand-dark underline">Show archived products</Link>}{archived === '1' && <span className="ml-3 text-green-800">Product archived.</span>}</p>
       <div className="mt-6 overflow-x-auto rounded-2xl bg-white ring-1 ring-line/70">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-ink/60"><tr><th className="px-4 py-3">Name</th><th>Category</th><th>Variants</th><th>From</th><th>Stock</th><th>Active</th><th /></tr></thead>

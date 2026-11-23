@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import AssistantLoader from '@/components/AssistantLoader';
+import CookieConsent from '@/components/CookieConsent';
 import { CartProvider } from '@/components/cart';
 import { SITE_URL, organizationJsonLd } from '@/lib/seo';
 import { STORE } from '@/config/store';
@@ -31,7 +32,8 @@ const introGuard = `try{if(sessionStorage.getItem('rw_intro_seen')==='1')documen
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-IN" className={`${display.variable} ${body.variable}`}>
+    // introGuard sets data-intro on <html> before React hydrates; only this element's attributes are exempt.
+    <html lang="en-IN" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: introGuard }} />
         <noscript>
@@ -45,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main id="main">{children}</main>
           <Footer />
           <AssistantLoader />
+          <CookieConsent />
         </CartProvider>
         <JsonLd data={organizationJsonLd()} />
       </body>

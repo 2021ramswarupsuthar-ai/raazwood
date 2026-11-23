@@ -17,7 +17,8 @@ export default async function Invoice({ params }: { params: Promise<{ publicId: 
   const kind = o.taxKind;
   const buyerState = stateByCode(o.stateCode);
   const sellerState = stateByCode(STORE.sellerStateCode);
-  const rows = o.items.map((it) => ({ it, s: splitInclusive(it.lineTotalPaise, it.gstRate, kind) }));
+  // A coupon discount is a pre-supply trade discount: GST is charged on the discounted value of each line.
+  const rows = o.items.map((it) => ({ it, net: it.lineTotalPaise - it.discountPaise, s: splitInclusive(it.lineTotalPaise - it.discountPaise, it.gstRate, kind) }));
 
   return (
     <div className="container-x max-w-4xl py-10">
@@ -44,14 +45,15 @@ export default async function Invoice({ params }: { params: Promise<{ publicId: 
           <table className="mt-6 w-full min-w-[640px] text-left">
             <thead className="text-xs uppercase tracking-wide text-ink/60"><tr><th className="py-2">Item</th><th>HSN</th><th className="text-right">Qty</th><th className="text-right">Taxable</th><th className="text-right">GST %</th>{kind === 'INTRA' ? (<><th className="text-right">CGST</th><th className="text-right">SGST</th></>) : <th className="text-right">IGST</th>}<th className="text-right">Amount</th></tr></thead>
             <tbody className="divide-y divide-line">
-              {rows.map(({ it, s }) => (
-                <tr key={it.id}><td className="py-2.5">{it.productName} <span className="text-ink/60">({it.variantLabel})</span></td><td>{it.hsn}</td><td className="text-right">{it.qty}</td><td className="text-right">{formatINR(s.taxable)}</td><td className="text-right">{it.gstRate}%</td>{kind === 'INTRA' ? (<><td className="text-right">{formatINR(s.cgst)}</td><td className="text-right">{formatINR(s.sgst)}</td></>) : <td className="text-right">{formatINR(s.igst)}</td>}<td className="text-right font-medium">{formatINR(it.lineTotalPaise)}</td></tr>
+              {rows.map(({ it, s, net }) => (
+                <tr key={it.id}><td className="py-2.5">{it.productName} <span className="text-ink/60">({it.variantLabel})</span>{it.discountPaise > 0 && <span className="block text-xs text-ink/60">{formatINR(it.lineTotalPaise)} less coupon discount {formatINR(it.discountPaise)}</span>}</td><td>{it.hsn}</td><td className="text-right">{it.qty}</td><td className="text-right">{formatINR(s.taxable)}</td><td className="text-right">{it.gstRate}%</td>{kind === 'INTRA' ? (<><td className="text-right">{formatINR(s.cgst)}</td><td className="text-right">{formatINR(s.sgst)}</td></>) : <td className="text-right">{formatINR(s.igst)}</td>}<td className="text-right font-medium">{formatINR(net)}</td></tr>
               ))}
               {o.shippingPaise > 0 && (<tr><td className="py-2.5" colSpan={kind === 'INTRA' ? 7 : 6}>Delivery charges (incl. GST)</td><td className="text-right font-medium">{formatINR(o.shippingPaise)}</td></tr>)}
             </tbody>
           </table>
         </div>
         <dl className="ml-auto mt-6 w-full max-w-xs space-y-1.5">
+          {o.discountPaise > 0 && <div className="flex justify-between text-ink/70"><dt>Coupon {o.couponCode} (already deducted)</dt><dd>−{formatINR(o.discountPaise)}</dd></div>}
           <div className="flex justify-between"><dt>Taxable value</dt><dd>{formatINR(o.taxablePaise)}</dd></div>
           {kind === 'INTRA' ? (<><div className="flex justify-between"><dt>CGST</dt><dd>{formatINR(o.cgstPaise)}</dd></div><div className="flex justify-between"><dt>SGST</dt><dd>{formatINR(o.sgstPaise)}</dd></div></>) : (<div className="flex justify-between"><dt>IGST</dt><dd>{formatINR(o.igstPaise)}</dd></div>)}
           <div className="flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Invoice total</dt><dd>{formatINR(o.totalPaise)}</dd></div>

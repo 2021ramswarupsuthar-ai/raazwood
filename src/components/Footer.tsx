@@ -19,11 +19,14 @@ export default function Footer() {
             <li><Link href="/furniture-in/hyderabad" className="hover:text-white">Furniture in Hyderabad</Link></li>
             <li><Link href="/furniture-in/bengaluru" className="hover:text-white">Furniture in Bengaluru</Link></li>
             <li><Link href="/furniture-in/chennai" className="hover:text-white">Furniture in Chennai</Link></li>
+            <li><Link href="/blog" className="hover:text-white">Buying guides</Link></li>
           </ul>
         </nav>
         <nav aria-label="Help" className="text-sm">
           <p className="eyebrow !text-brand">Help</p>
           <ul className="mt-4 space-y-2">
+            <li><Link href="/account" className="hover:text-white">My account &amp; orders</Link></li>
+            <li><Link href="/faq" className="hover:text-white">FAQ</Link></li>
             <li><Link href="/contact" className="hover:text-white">Contact us</Link></li>
             <li><Link href="/shipping-policy" className="hover:text-white">Shipping &amp; delivery</Link></li>
             <li><Link href="/returns-policy" className="hover:text-white">Returns &amp; refunds</Link></li>
@@ -32,7 +35,7 @@ export default function Footer() {
           </ul>
         </nav>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-xs text-bone/60">© {new Date().getFullYear()} {STORE.legalName}. All rights reserved. Secure payments by Razorpay (UPI).</div>
+      <div className="border-t border-white/10 py-5 text-center text-xs text-bone/60">© {new Date().getFullYear()} {STORE.legalName}. All rights reserved. Secure UPI payments.</div>
     </footer>
   );
 }
