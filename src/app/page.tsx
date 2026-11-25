@@ -11,6 +11,8 @@ import { faqJsonLd } from '@/lib/seo';
 import { FAQS } from '@/config/faq';
 import UspStrip from '@/components/UspStrip';
 import { prisma } from '@/server/db';
+import HeroCarousel from '@/components/HeroCarousel';
+import { getHeroForHome } from '@/server/hero';
 import { STORE } from '@/config/store';
 
 export const revalidate = 3600;
@@ -26,7 +28,8 @@ const POINTS = [
 ];
 
 export default async function Home() {
-  const [cats, featured, guides] = await Promise.all([
+  const [hero, cats, featured, guides] = await Promise.all([
+    getHeroForHome().catch(() => null),
     getCategories().catch(() => []),
     listProducts({ featured: true, take: 8 }).catch(() => []),
     prisma.blogPost.findMany({ where: { isPublished: true }, orderBy: { publishedAt: 'desc' }, take: 3, select: { id: true, slug: true, title: true, excerpt: true, coverImage: true } }).catch(() => []),
@@ -36,8 +39,14 @@ export default async function Home() {
 
   return (
     <>
-      <IntroOverlay />
-      <TableHero />
+      {hero && hero.mode !== 'TABLE' ? (
+        <HeroCarousel variant={hero.mode === 'PRODUCTS' ? 'products' : 'banner'} slides={hero.slides} headline={hero.settings.headline} subline={hero.settings.subline} ctaLabel={hero.settings.ctaLabel} ctaHref={hero.settings.ctaHref} />
+      ) : (
+        <>
+          <IntroOverlay />
+          <TableHero />
+        </>
+      )}
 
       <div className="overflow-hidden border-y border-line bg-walnut py-4 text-brand" aria-hidden="true">
         <div className="marquee font-display text-xl uppercase tracking-[0.25em]">

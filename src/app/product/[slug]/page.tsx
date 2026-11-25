@@ -14,6 +14,7 @@ import InfoAccordion from '@/components/InfoAccordion';
 import { getApprovedReviews, getProductBySlug, getRelated } from '@/server/catalog';
 import { abs, breadcrumbJsonLd, productJsonLd } from '@/lib/seo';
 import { STORE } from '@/config/store';
+import { PLATFORMS } from '@/lib/marketplaces';
 
 export const revalidate = 1800;
 type P = Promise<{ slug: string }>;
@@ -66,6 +67,16 @@ export default async function ProductPage({ params }: { params: P }) {
           {p.shortDesc && <p className="mt-3 text-lg text-ink/75">{p.shortDesc}</p>}
           <div className="mt-6"><ProductBuy product={{ slug: p.slug, name: p.name, image: p.images[0] ?? null }} variants={p.variants.map((v) => ({ id: v.id, label: v.label, packQty: v.packQty, pricePaise: v.pricePaise, mrpPaise: v.mrpPaise, stock: v.stock }))} /></div>
           <div className="mt-4 rounded-2xl bg-white p-5 ring-1 ring-line/70"><PincodeChecker /></div>
+          {p.marketplaces.length > 0 && (
+            <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-line/70">
+              <p className="text-sm font-medium">Also available on</p>
+              <ul className="mt-2 flex flex-wrap gap-2">
+                {PLATFORMS.filter((pl) => p.marketplaces.some((m) => m.platform === pl.key)).map((pl) => (
+                  <li key={pl.key}><a href={p.marketplaces.find((m) => m.platform === pl.key)!.url} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-1.5 text-sm font-medium transition hover:border-brand-dark hover:text-brand-dark">{pl.label} <span aria-hidden="true">↗</span><span className="sr-only">(opens in a new tab)</span></a></li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="mt-4"><UspStrip compact /></div>
           <div className="mt-4"><InfoAccordion finish={p.finish} /></div>
           <a href={wa} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-walnut px-5 py-4 text-bone transition hover:bg-walnut-soft"><span><span className="block font-display text-xl">Need a custom size or finish?</span><span className="block text-sm text-bone/70">Chat with our team about this product on WhatsApp</span></span><span aria-hidden="true" className="text-2xl text-brand">→</span></a>

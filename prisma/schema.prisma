@@ -24,6 +24,12 @@ enum PaymentMethod {
   MANUAL_UPI
 }
 
+enum Marketplace {
+  AMAZON
+  FLIPKART
+  MEESHO
+}
+
 enum ReviewStatus {
   PENDING
   APPROVED
@@ -53,30 +59,31 @@ model Category {
 }
 
 model Product {
-  id           String         @id @default(cuid())
-  slug         String         @unique
+  id           String               @id @default(cuid())
+  slug         String               @unique
   name         String
   categoryId   String
-  category     Category       @relation(fields: [categoryId], references: [id])
-  shortDesc    String         @default("")
-  description  String         @default("")
-  material     String         @default("Solid sheesham wood")
-  finish       String         @default("")
-  dimensions   String         @default("")
-  features     String[]       @default([])
-  images       String[]       @default([])
-  hsn          String         @default("9403")
-  gstRate      Int            @default(18)
+  category     Category             @relation(fields: [categoryId], references: [id])
+  shortDesc    String               @default("")
+  description  String               @default("")
+  material     String               @default("Solid sheesham wood")
+  finish       String               @default("")
+  dimensions   String               @default("")
+  features     String[]             @default([])
+  images       String[]             @default([])
+  hsn          String               @default("9403")
+  gstRate      Int                  @default(18)
   seoTitle     String?
   seoDesc      String?
-  isActive     Boolean        @default(true)
-  isFeatured   Boolean        @default(false)
+  isActive     Boolean              @default(true)
+  isFeatured   Boolean              @default(false)
   deletedAt    DateTime? // soft delete: archived products are hidden everywhere and kept for old orders
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   variants     Variant[]
   reviews      Review[]
   wishlistedBy WishlistItem[]
+  marketplaces ProductMarketplace[]
 
   @@index([categoryId, isActive])
 }
@@ -317,4 +324,58 @@ model AuditLog {
 
   @@index([createdAt])
   @@index([entity, entityId])
+}
+
+// Other platforms where the same product is sold (Amazon, Flipkart, Meesho). Shown as small links on the product page.
+model ProductMarketplace {
+  id        String      @id @default(cuid())
+  productId String
+  product   Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  platform  Marketplace
+  url       String
+  updatedAt DateTime    @updatedAt
+
+  @@unique([productId, platform])
+}
+
+// Admin-uploaded images (hero / banners). Stored resized and re-encoded as WebP in two sizes, so the same file
+// works on desktop and phones and nothing depends on a writable disk (works on Vercel too).
+model SiteImage {
+  id        String      @id @default(cuid())
+  mime      String      @default("image/webp")
+  width     Int
+  height    Int
+  large     Bytes // up to 2000 px wide
+  small     Bytes // up to 900 px wide
+  bytes     Int // size of `large`, for the admin list
+  alt       String      @default("")
+  createdAt DateTime    @default(now())
+  slides    HeroSlide[]
+}
+
+enum HeroKind {
+  PRODUCT // photos for the animated product hero
+  BANNER // full-width promotional banners
+}
+
+model HeroSlide {
+  id        String    @id @default(cuid())
+  kind      HeroKind
+  imageId   String
+  image     SiteImage @relation(fields: [imageId], references: [id], onDelete: Cascade)
+  title     String    @default("")
+  subtitle  String    @default("")
+  linkUrl   String? // /path on this site or an https link; banners become clickable
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  @@index([kind, isActive, sortOrder])
+}
+
+// Small key/value store for site-wide settings edited in admin (hero mode and texts).
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }

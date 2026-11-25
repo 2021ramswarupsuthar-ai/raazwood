@@ -17,6 +17,7 @@ const ICON: Record<string, string> = {
   grid: 'M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z',
   star: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3Z',
   pen: 'M4 20h4L19 9l-4-4L4 16v4ZM14 6l4 4',
+  image: 'M4 5h16v14H4V5Zm0 11 4-4 3 3 4-5 5 6M9 9.5v.01',
   truck: 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 18.5v.01M17 18.5v.01',
   log: 'M6 3h9l4 4v14H6V3Zm3 8h7M9 15h7',
   out: 'M10 4H5v16h5M15 8l4 4-4 4M19 12H9',
@@ -44,6 +45,7 @@ export default function AdminNav({ counts, email, logout }: { counts: { utr: num
       { href: '/admin/reviews', label: 'Reviews', icon: 'star', badge: counts.reviews },
     ] },
     { title: 'Store', items: [
+      { href: '/admin/hero', label: 'Homepage hero', icon: 'image' },
       { href: '/admin/blog', label: 'Blog / guides', icon: 'pen' },
       { href: '/admin/delivery', label: 'Delivery zones', icon: 'truck' },
       { href: '/admin/audit', label: 'Audit log', icon: 'log' },

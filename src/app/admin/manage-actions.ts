@@ -12,6 +12,8 @@ import { blogFormSchema, categoryFormSchema, couponFormSchema } from '@/lib/vali
 import { toPaise } from '@/lib/money';
 import { slugify } from '@/lib/seo';
 import { STATES } from '@/config/states';
+import { cleanHeroLink, normalizeHero } from '@/lib/hero';
+import { saveHeroSettings } from '@/server/hero';
 
 const bounce = (path: string, msg: string): never => redirect(`${path}${path.includes('?') ? '&' : '?'}error=${encodeURIComponent(msg)}`);
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '').trim();
@@ -179,4 +181,59 @@ export async function rejectUtrAction(orderId: string) {
   await audit(admin.email, 'payment.manual_upi.reject', 'Order', orderId, { ok });
   revalidatePath(`/admin/orders/${orderId}`);
   redirect(`/admin/orders/${orderId}`);
+}
+
+// ---------- Homepage hero ----------
+
+export async function saveHeroSettingsAction(fd: FormData) {
+  const admin = await requireAdmin();
+  const raw = { mode: str(fd, 'mode'), headline: str(fd, 'headline'), subline: str(fd, 'subline'), ctaLabel: str(fd, 'ctaLabel'), ctaHref: str(fd, 'ctaHref') };
+  if (raw.ctaHref && cleanHeroLink(raw.ctaHref) === null) bounce('/admin/hero', 'The button link must start with / (a page on this site) or https://.');
+  const settings = normalizeHero(raw);
+  await saveHeroSettings(settings);
+  await audit(admin.email, 'hero.settings', 'SiteSetting', 'hero', { mode: settings.mode });
+  revalidatePath('/');
+  redirect('/admin/hero?saved=1');
+}
+
+export async function updateSlideAction(id: string, fd: FormData) {
+  const admin = await requireAdmin();
+  const link = cleanHeroLink(str(fd, 'link'));
+  if (link === null) bounce('/admin/hero', 'The link must start with / (a page on this site) or https://.');
+  const title = str(fd, 'title').slice(0, 80);
+  await prisma.heroSlide.update({ where: { id }, data: { title, subtitle: str(fd, 'subtitle').slice(0, 160), linkUrl: link || null, isActive: fd.get('isActive') === 'on' } });
+  await prisma.siteImage.updateMany({ where: { slides: { some: { id } } }, data: { alt: title } });
+  await audit(admin.email, 'hero.slide.update', 'HeroSlide', id);
+  revalidatePath('/');
+  redirect('/admin/hero?saved=1');
+}
+
+/** Swap this slide with its neighbour (same kind) to change the order. */
+export async function moveSlideAction(id: string, dir: 'up' | 'down') {
+  await requireAdmin();
+  const cur = await prisma.heroSlide.findUnique({ where: { id } });
+  if (cur) {
+    const all = await prisma.heroSlide.findMany({ where: { kind: cur.kind }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }], select: { id: true } });
+    const i = all.findIndex((x) => x.id === id);
+    const j = dir === 'up' ? i - 1 : i + 1;
+    if (i >= 0 && j >= 0 && j < all.length) {
+      const order = all.map((x) => x.id);
+      [order[i], order[j]] = [order[j], order[i]];
+      await prisma.$transaction(order.map((sid, n) => prisma.heroSlide.update({ where: { id: sid }, data: { sortOrder: n + 1 } })));
+    }
+  }
+  revalidatePath('/');
+  redirect('/admin/hero');
+}
+
+export async function deleteSlideAction(id: string) {
+  const admin = await requireAdmin();
+  const s = await prisma.heroSlide.findUnique({ where: { id }, select: { imageId: true } });
+  if (s) {
+    await prisma.heroSlide.delete({ where: { id } });
+    await prisma.siteImage.deleteMany({ where: { id: s.imageId, slides: { none: {} } } }); // free the stored bytes
+    await audit(admin.email, 'hero.slide.delete', 'HeroSlide', id);
+  }
+  revalidatePath('/');
+  redirect('/admin/hero');
 }

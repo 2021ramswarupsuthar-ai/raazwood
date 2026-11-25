@@ -13,7 +13,7 @@ export default async function Audit({ searchParams }: { searchParams: Promise<{ 
   await requireAdmin();
   const { entity } = await searchParams;
   const logs = await prisma.auditLog.findMany({ where: entity ? { entity } : {}, orderBy: { createdAt: 'desc' }, take: 300 });
-  const entities = ['Order', 'Product', 'Variant', 'Category', 'Coupon', 'Review', 'BlogPost', 'DeliveryZone'];
+  const entities = ['Order', 'Product', 'Variant', 'Category', 'Coupon', 'Review', 'BlogPost', 'DeliveryZone', 'HeroSlide', 'SiteSetting'];
   return (
     <div>
       <h1 className="font-display text-4xl font-semibold">Audit log</h1>
