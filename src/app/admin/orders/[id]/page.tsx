@@ -5,6 +5,7 @@ import { prisma } from '@/server/db';
 import { formatINR } from '@/lib/money';
 import { STATUS_LABEL, allowedNext, type Status } from '@/lib/order-status';
 import { Flash } from '@/components/AdminUi';
+import StatusBadge from '@/components/StatusBadge';
 import { updateOrderStatusAction } from '../../actions';
 import { confirmUtrAction, rejectUtrAction } from '../../manage-actions';
 
@@ -20,7 +21,7 @@ export default async function OrderDetail({ params, searchParams }: { params: Pr
     <div className="max-w-4xl">
       <Link href="/admin/orders" className="text-sm text-brand-dark underline">← All orders</Link>
       <h1 className="mt-2 font-display text-4xl font-semibold">Order {o.publicId}</h1>
-      <p className="mt-1 text-ink/70">Status: <strong>{STATUS_LABEL[o.status as Status]}</strong> · {manual ? 'Manual UPI' : 'Razorpay'}{o.invoiceNo ? ` · Invoice ${o.invoiceNo}` : ''} · placed {o.createdAt.toLocaleString('en-IN')}</p>
+      <p className="mt-1 text-ink/70"><StatusBadge status={o.status} /> · {manual ? 'Manual UPI' : 'Razorpay'}{o.invoiceNo ? ` · Invoice ${o.invoiceNo}` : ''} · placed {o.createdAt.toLocaleString('en-IN')}</p>
       <Flash error={error} />
       {o.notes && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Notes: {o.notes}</p>}
 

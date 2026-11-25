@@ -3,8 +3,10 @@ import { loginAction } from '../actions';
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
   return (
-    <div className="mx-auto max-w-sm rounded-2xl bg-white p-8 shadow-card ring-1 ring-line/70">
-      <h1 className="font-display text-3xl font-semibold">Admin login</h1>
+    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-lift ring-1 ring-line/70">
+      <p className="font-display text-2xl font-semibold text-brand-dark">Raazwood</p>
+      <h1 className="mt-1 font-display">Admin sign in</h1>
+      <p className="mt-1 text-sm text-ink/60">Use your admin email and password.</p>
       <form action={loginAction} className="mt-6 space-y-4">
         <div><label className="label" htmlFor="email">Email</label><input id="email" name="email" type="email" required autoComplete="username" className="field" /></div>
         <div><label className="label" htmlFor="password">Password</label><input id="password" name="password" type="password" required autoComplete="current-password" className="field" /></div>

@@ -6,6 +6,9 @@ import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import AssistantLoader from '@/components/AssistantLoader';
 import CookieConsent from '@/components/CookieConsent';
+import ChromeGate from '@/components/ChromeGate';
+import AnnouncementBar from '@/components/AnnouncementBar';
+import FloatingWhatsApp from '@/components/FloatingWhatsApp';
 import { CartProvider } from '@/components/cart';
 import { SITE_URL, organizationJsonLd } from '@/lib/seo';
 import { STORE } from '@/config/store';
@@ -43,11 +46,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans">
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[200] focus:rounded focus:bg-white focus:px-3 focus:py-2">Skip to content</a>
         <CartProvider>
-          <Header />
-          <main id="main">{children}</main>
-          <Footer />
-          <AssistantLoader />
-          <CookieConsent />
+          <ChromeGate
+            top={<><AnnouncementBar /><Header /></>}
+            bottom={<Footer />}
+            floating={<><AssistantLoader /><FloatingWhatsApp /><CookieConsent /></>}
+          >
+            {children}
+          </ChromeGate>
         </CartProvider>
         <JsonLd data={organizationJsonLd()} />
       </body>

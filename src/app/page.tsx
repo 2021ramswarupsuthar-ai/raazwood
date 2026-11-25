@@ -9,6 +9,9 @@ import JsonLd from '@/components/JsonLd';
 import { getCategories, listProducts } from '@/server/catalog';
 import { faqJsonLd } from '@/lib/seo';
 import { FAQS } from '@/config/faq';
+import UspStrip from '@/components/UspStrip';
+import { prisma } from '@/server/db';
+import { STORE } from '@/config/store';
 
 export const revalidate = 3600;
 
@@ -23,7 +26,12 @@ const POINTS = [
 ];
 
 export default async function Home() {
-  const [cats, featured] = await Promise.all([getCategories().catch(() => []), listProducts({ featured: true, take: 8 }).catch(() => [])]);
+  const [cats, featured, guides] = await Promise.all([
+    getCategories().catch(() => []),
+    listProducts({ featured: true, take: 8 }).catch(() => []),
+    prisma.blogPost.findMany({ where: { isPublished: true }, orderBy: { publishedAt: 'desc' }, take: 3, select: { id: true, slug: true, title: true, excerpt: true, coverImage: true } }).catch(() => []),
+  ]);
+  const wa = `https://wa.me/${STORE.whatsapp}?text=${encodeURIComponent('Hello Raazwood, I would like help choosing furniture.')}`;
   const items = ['Solid sheesham wood', 'Delivered across India', 'Pay securely by UPI', 'Made to last generations', 'Custom sizes on request'];
 
   return (
@@ -37,8 +45,10 @@ export default async function Home() {
         </div>
       </div>
 
+      <section className="container-x -mt-px pt-8" aria-label="Our promises"><UspStrip /></section>
+
       {cats.length > 0 && (
-        <section className="container-x pt-20" aria-labelledby="cats">
+        <section className="container-x pt-16" aria-labelledby="cats">
           <Reveal><p className="eyebrow">Shop by room</p><h2 id="cats" className="h-display mt-2 text-4xl md:text-5xl">Find your piece</h2></Reveal>
           <ul className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {cats.map((c, i) => (
@@ -81,6 +91,48 @@ export default async function Home() {
           ))}
         </ul>
       </section>
+
+      <section className="container-x pt-24" aria-labelledby="custom">
+        <Reveal>
+          <div className="grid overflow-hidden rounded-3xl bg-walnut text-bone md:grid-cols-2">
+            <div className="p-8 sm:p-12">
+              <p className="eyebrow !text-brand">Made for your space</p>
+              <h2 id="custom" className="h-display mt-2 text-4xl md:text-5xl">Need a custom size or finish?</h2>
+              <p className="mt-4 max-w-md text-bone/75">Tell us the size, polish and fabric you want. Our team will share options and a price on WhatsApp, usually the same day.</p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a href={wa} target="_blank" rel="noopener noreferrer" className="btn btn-light">Chat on WhatsApp</a>
+                <Link href="/faq" className="btn !border !border-bone/30 text-bone hover:bg-white/10">Read the FAQ</Link>
+              </div>
+            </div>
+            <div className="hero-bg grid min-h-56 place-items-center p-8">
+              <ul className="space-y-3 text-sm text-bone/85">
+                {['Choose your size and polish', 'Share a photo or measurements', 'Get a quote and delivery estimate', 'Pay by UPI and track your order'].map((t, i) => (
+                  <li key={t} className="flex items-center gap-3"><span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs font-bold text-walnut">{i + 1}</span>{t}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      {guides.length > 0 && (
+        <section className="container-x pt-24" aria-labelledby="guides">
+          <Reveal className="flex items-end justify-between gap-4">
+            <div><p className="eyebrow">Guides</p><h2 id="guides" className="h-display mt-2 text-4xl md:text-5xl">Before you buy</h2></div>
+            <Link href="/blog" className="btn btn-ghost hidden sm:inline-flex">All guides</Link>
+          </Reveal>
+          <ul className="mt-8 grid gap-5 md:grid-cols-3">
+            {guides.map((g, i) => (
+              <Reveal as="li" key={g.id} delay={i * 80}>
+                <Link href={`/blog/${g.slug}`} className="pcard group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-line/70 transition hover:-translate-y-1 hover:shadow-lift hover:ring-brand">
+                  <div className="relative aspect-[16/9] bg-bone"><Image src={g.coverImage || '/images/placeholder.svg'} alt="" fill sizes="(min-width:768px) 33vw, 90vw" className="object-cover" unoptimized={(g.coverImage || '/images/placeholder.svg').endsWith('.svg')} /></div>
+                  <div className="p-5"><h3 className="font-display text-2xl font-semibold leading-snug">{g.title}</h3>{g.excerpt && <p className="mt-2 text-sm text-ink/70">{g.excerpt}</p>}<span className="mt-3 inline-block text-sm font-semibold text-brand-dark">Read guide →</span></div>
+                </Link>
+              </Reveal>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section id="delivery" className="mt-24 bg-walnut py-20 text-bone" aria-labelledby="deliv">
         <div className="container-x grid items-center gap-10 md:grid-cols-2">
