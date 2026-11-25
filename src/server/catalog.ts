@@ -117,7 +117,7 @@ export async function suggestProducts(q: string, take = 6) {
 export async function getProductBySlug(slug: string) {
   return prisma.product.findFirst({
     where: { slug, ...VISIBLE },
-    include: { category: true, variants: { orderBy: { pricePaise: 'asc' } } },
+    include: { category: true, variants: { orderBy: { pricePaise: 'asc' } }, marketplaces: true },
   });
 }
 

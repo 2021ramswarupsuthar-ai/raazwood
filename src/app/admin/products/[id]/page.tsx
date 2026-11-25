@@ -22,7 +22,7 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
   await requireAdmin();
   const { id } = await params;
   const { error, saved } = await searchParams;
-  const [p, categories] = await Promise.all([prisma.product.findUnique({ where: { id }, include: { variants: { orderBy: { pricePaise: 'asc' } } } }), prisma.category.findMany({ orderBy: { sortOrder: 'asc' } })]);
+  const [p, categories] = await Promise.all([prisma.product.findUnique({ where: { id }, include: { variants: { orderBy: { pricePaise: 'asc' } }, marketplaces: true } }), prisma.category.findMany({ orderBy: { sortOrder: 'asc' } })]);
   if (!p) notFound();
   return (
     <div className="max-w-4xl">
@@ -30,7 +30,7 @@ export default async function EditProduct({ params, searchParams }: { params: Pr
       <h1 className="mt-2 font-display text-4xl font-semibold">{p.name}</h1>
       {saved && <p className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-800" role="status">Saved.</p>}
       {error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">{error}</p>}
-      <div className="mt-6"><ProductForm action={updateProductAction.bind(null, p.id)} categories={categories} p={p} submit="Save product" /></div>
+      <div className="mt-6"><ProductForm action={updateProductAction.bind(null, p.id)} categories={categories} p={p} submit="Save product" marketplaces={p.marketplaces} /></div>
       <h2 className="mt-12 font-display text-3xl font-semibold">Sizes / packs</h2>
       <p className="text-sm text-ink/60">Each variant has its own price, stock and delivery charge. Use a pack quantity of 2 for “Set of 2” listings.</p>
       <div className="mt-4 space-y-3">{p.variants.map((v) => <VariantForm key={v.id} productId={p.id} v={v} submit="Update" />)}</div>

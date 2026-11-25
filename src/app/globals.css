@@ -87,3 +87,8 @@ html[data-intro='skip'] #intro { display: none; }
 .admin-root .btn { border-radius: .6rem; padding: .55rem 1.1rem; font-size: 14px; letter-spacing: 0; }
 .admin-root .shadow-card { box-shadow: 0 1px 2px rgba(43,33,24,.05); }
 .admin-root details > summary::-webkit-details-marker { display: none; }
+
+/* ---------- Homepage hero carousel: slow zoom on the active photo ---------- */
+.hero-zoom { animation: heroZoom 9s ease-out forwards; }
+@keyframes heroZoom { from { transform: scale(1); } to { transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .hero-zoom { animation: none; } }

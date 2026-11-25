@@ -10,6 +10,7 @@ import { canTransition, type Status } from '@/lib/order-status';
 import { toPaise } from '@/lib/money';
 import { slugify } from '@/lib/seo';
 import { audit } from '@/server/audit';
+import { PLATFORMS, cleanMarketplaceUrl, type Platform } from '@/lib/marketplaces';
 import { notifyOrderStatus } from '@/server/notify';
 
 const lines = (v: FormDataEntryValue | null) => String(v ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
@@ -50,17 +51,36 @@ function parseProduct(fd: FormData) {
   };
   const parsed = productFormSchema.safeParse(raw);
   const images = lines(fd.get('images')).filter((u) => /^(https:\/\/|\/)/.test(u));
-  return { parsed, images, features: lines(fd.get('features')) };
+  // Platform links: a ticked platform needs a valid link for that platform; unticked platforms are removed.
+  const links: { platform: Platform; url: string }[] = [];
+  let linkError: string | null = null;
+  for (const pl of PLATFORMS) {
+    if (fd.get(`mp_${pl.key}`) !== 'on') continue;
+    const url = cleanMarketplaceUrl(pl.key, String(fd.get(`mpurl_${pl.key}`) ?? ''));
+    if (!url) { linkError = `${pl.label}: paste a valid ${pl.label} product link (it must be on ${pl.label}'s own website), or untick it.`; break; }
+    links.push({ platform: pl.key, url });
+  }
+  return { parsed, images, features: lines(fd.get('features')), links, linkError };
+}
+
+/** Replace this product's platform links with exactly the ticked ones. */
+async function saveLinks(productId: string, links: { platform: Platform; url: string }[]) {
+  await prisma.$transaction([
+    prisma.productMarketplace.deleteMany({ where: { productId, platform: { notIn: links.map((l) => l.platform) } } }),
+    ...links.map((l) => prisma.productMarketplace.upsert({ where: { productId_platform: { productId, platform: l.platform } }, update: { url: l.url }, create: { productId, platform: l.platform, url: l.url } })),
+  ]);
 }
 
 export async function createProductAction(fd: FormData) {
   const admin = await requireAdmin();
-  const { parsed, images, features } = parseProduct(fd);
+  const { parsed, images, features, links, linkError } = parseProduct(fd);
+  if (linkError) bounce('/admin/products/new', linkError);
   if (!parsed.success) bounce('/admin/products/new', parsed.error.issues[0].path.join('.') + ': ' + parsed.error.issues[0].message);
   const d = parsed.data!;
   try {
     const p = await prisma.product.create({ data: { ...d, images, features } });
-    await audit(admin.email, 'product.create', 'Product', p.id, { name: p.name, slug: p.slug });
+    await saveLinks(p.id, links);
+    await audit(admin.email, 'product.create', 'Product', p.id, { name: p.name, slug: p.slug, platforms: links.map((l) => l.platform) });
     revalidatePath('/', 'layout');
     redirect(`/admin/products/${p.id}?saved=1`);
   } catch (e) {
@@ -71,11 +91,13 @@ export async function createProductAction(fd: FormData) {
 
 export async function updateProductAction(id: string, fd: FormData) {
   const admin = await requireAdmin();
-  const { parsed, images, features } = parseProduct(fd);
+  const { parsed, images, features, links, linkError } = parseProduct(fd);
+  if (linkError) bounce(`/admin/products/${id}`, linkError);
   if (!parsed.success) bounce(`/admin/products/${id}`, parsed.error.issues[0].path.join('.') + ': ' + parsed.error.issues[0].message);
   try {
     await prisma.product.update({ where: { id }, data: { ...parsed.data!, images, features } });
-    await audit(admin.email, 'product.update', 'Product', id, { name: parsed.data!.name, isActive: parsed.data!.isActive });
+    await saveLinks(id, links);
+    await audit(admin.email, 'product.update', 'Product', id, { name: parsed.data!.name, isActive: parsed.data!.isActive, platforms: links.map((l) => l.platform) });
   } catch {
     bounce(`/admin/products/${id}`, 'Could not save (is the slug already used?)');
   }
