@@ -17,7 +17,7 @@ const config: Config = {
         display: ['var(--font-display)', 'Georgia', 'serif'],
         sans: ['var(--font-body)', 'system-ui', 'sans-serif'],
       },
-      boxShadow: { card: '0 1px 2px rgba(43,33,24,.06), 0 8px 24px rgba(43,33,24,.08)' },
+      boxShadow: { card: '0 1px 2px rgba(43,33,24,.06), 0 8px 24px rgba(43,33,24,.08)', lift: '0 2px 4px rgba(43,33,24,.06), 0 18px 40px rgba(43,33,24,.14)' },
     },
   },
   plugins: [],

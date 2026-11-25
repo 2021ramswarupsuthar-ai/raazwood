@@ -9,6 +9,8 @@ import JsonLd from '@/components/JsonLd';
 import WishlistButton from '@/components/WishlistButton';
 import ReviewForm from '@/components/ReviewForm';
 import Stars from '@/components/Stars';
+import UspStrip from '@/components/UspStrip';
+import InfoAccordion from '@/components/InfoAccordion';
 import { getApprovedReviews, getProductBySlug, getRelated } from '@/server/catalog';
 import { abs, breadcrumbJsonLd, productJsonLd } from '@/lib/seo';
 import { STORE } from '@/config/store';
@@ -41,7 +43,7 @@ export default async function ProductPage({ params }: { params: P }) {
   const specs: [string, string][] = [['Material', p.material], ['Finish', p.finish], ['Dimensions', p.dimensions]].filter(([, v]) => v) as [string, string][];
 
   return (
-    <div className="container-x py-10">
+    <div className="container-x py-10 pb-28 lg:pb-10">
       <JsonLd
         data={productJsonLd({
           name: p.name, slug: p.slug, description: p.shortDesc || p.description, images: p.images.length ? p.images : ['/images/placeholder.svg'], sku: p.variants[0]?.sku ?? p.slug, material: p.material,
@@ -63,8 +65,10 @@ export default async function ProductPage({ params }: { params: P }) {
           {rv.count > 0 && <a href="#reviews" className="mt-2 inline-flex items-center gap-2 text-sm"><Stars value={rv.average} /> <span className="text-ink/70">{rv.average} ({rv.count} review{rv.count > 1 ? 's' : ''})</span></a>}
           {p.shortDesc && <p className="mt-3 text-lg text-ink/75">{p.shortDesc}</p>}
           <div className="mt-6"><ProductBuy product={{ slug: p.slug, name: p.name, image: p.images[0] ?? null }} variants={p.variants.map((v) => ({ id: v.id, label: v.label, packQty: v.packQty, pricePaise: v.pricePaise, mrpPaise: v.mrpPaise, stock: v.stock }))} /></div>
-          <div className="mt-8 rounded-2xl bg-white p-5 ring-1 ring-line/70"><PincodeChecker /></div>
-          <a href={wa} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex text-sm font-semibold text-brand-dark underline-offset-4 hover:underline">Ask about this product or a custom size on WhatsApp →</a>
+          <div className="mt-4 rounded-2xl bg-white p-5 ring-1 ring-line/70"><PincodeChecker /></div>
+          <div className="mt-4"><UspStrip compact /></div>
+          <div className="mt-4"><InfoAccordion finish={p.finish} /></div>
+          <a href={wa} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-walnut px-5 py-4 text-bone transition hover:bg-walnut-soft"><span><span className="block font-display text-xl">Need a custom size or finish?</span><span className="block text-sm text-bone/70">Chat with our team about this product on WhatsApp</span></span><span aria-hidden="true" className="text-2xl text-brand">→</span></a>
         </div>
       </div>
 

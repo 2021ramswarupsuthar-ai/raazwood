@@ -4,6 +4,7 @@ import { prisma } from '@/server/db';
 import { formatINR } from '@/lib/money';
 import { STATUS_LABEL, type Status } from '@/lib/order-status';
 import { DownloadLink } from '@/components/AdminUi';
+import StatusBadge from '@/components/StatusBadge';
 
 const FILTERS: (Status | 'ALL')[] = ['ALL', 'PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'EXPIRED', 'REFUNDED'];
 
@@ -36,7 +37,7 @@ export default async function Orders({ searchParams }: { searchParams: Promise<{
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-ink/60"><tr><th className="px-4 py-3">Date</th><th>Customer</th><th>State</th><th>Status</th><th className="text-right">Total</th><th className="px-4" /></tr></thead>
           <tbody className="divide-y divide-line">
-            {orders.map((o) => (<tr key={o.id}><td className="px-4 py-3">{o.createdAt.toLocaleString('en-IN')}</td><td>{o.customerName}<br /><span className="text-ink/60">{o.phone}</span></td><td>{o.stateCode}</td><td>{STATUS_LABEL[o.status as Status]}{o.paymentMethod === 'MANUAL_UPI' && <span className="block text-xs text-ink/60">Manual UPI{o.utrSubmittedAt && o.status === 'PENDING_PAYMENT' ? ': UTR to verify' : ''}</span>}</td><td className="text-right font-medium">{formatINR(o.totalPaise)}</td><td className="px-4 text-right"><Link className="text-brand-dark underline" href={`/admin/orders/${o.id}`}>Open</Link></td></tr>))}
+            {orders.map((o) => (<tr key={o.id}><td className="px-4 py-3">{o.createdAt.toLocaleString('en-IN')}</td><td>{o.customerName}<br /><span className="text-ink/60">{o.phone}</span></td><td>{o.stateCode}</td><td><StatusBadge status={o.status} />{o.paymentMethod === 'MANUAL_UPI' && <span className="block text-xs text-ink/60">Manual UPI{o.utrSubmittedAt && o.status === 'PENDING_PAYMENT' ? ': UTR to verify' : ''}</span>}</td><td className="text-right font-medium">{formatINR(o.totalPaise)}</td><td className="px-4 text-right"><Link className="text-brand-dark underline" href={`/admin/orders/${o.id}`}>Open</Link></td></tr>))}
             {orders.length === 0 && <tr><td className="px-4 py-8 text-center text-ink/60" colSpan={6}>No orders.</td></tr>}
           </tbody>
         </table>

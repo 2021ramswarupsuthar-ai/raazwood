@@ -71,3 +71,19 @@ html[data-intro='skip'] #intro { display: none; }
   .marquee { animation: none; }
   .pcard img { transition: none; }
 }
+
+/* ---------- Admin: professional dashboard look (scoped, applies to every admin page) ---------- */
+.admin-root { font-family: var(--font-body), system-ui, sans-serif; }
+.admin-root .font-display { font-family: var(--font-body), system-ui, sans-serif; letter-spacing: -0.01em; }
+.admin-root h1 { font-size: 1.6rem !important; line-height: 2rem !important; font-weight: 650 !important; }
+.admin-root h2 { font-size: 1.1rem !important; line-height: 1.5rem !important; font-weight: 650 !important; }
+.admin-root h3 { font-size: 1rem !important; line-height: 1.4rem !important; font-weight: 650 !important; }
+.admin-root table { border-collapse: separate; border-spacing: 0; }
+.admin-root thead th { background: #FAF7F2; font-weight: 600; letter-spacing: .04em; padding-top: .7rem; padding-bottom: .7rem; border-bottom: 1px solid var(--line, #E6DCCF); }
+.admin-root tbody tr { transition: background .15s; }
+.admin-root tbody tr:hover { background: #FBF9F5; }
+.admin-root .field { border-radius: .5rem; font-size: 14px; padding: .55rem .75rem; }
+.admin-root .label { font-size: 13px; font-weight: 600; }
+.admin-root .btn { border-radius: .6rem; padding: .55rem 1.1rem; font-size: 14px; letter-spacing: 0; }
+.admin-root .shadow-card { box-shadow: 0 1px 2px rgba(43,33,24,.05); }
+.admin-root details > summary::-webkit-details-marker { display: none; }

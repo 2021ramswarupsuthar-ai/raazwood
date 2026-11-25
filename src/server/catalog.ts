@@ -8,6 +8,7 @@ export type CardProduct = {
   name: string;
   shortDesc: string;
   image: string | null;
+  image2: string | null;
   category: { slug: string; name: string };
   fromPricePaise: number;
   fromMrpPaise: number;
@@ -36,6 +37,7 @@ export function toCard(p: ProductWithRel): CardProduct {
     name: p.name,
     shortDesc: p.shortDesc,
     image: p.images[0] ?? null,
+    image2: p.images[1] ?? null,
     category: { slug: p.category.slug, name: p.category.name },
     fromPricePaise: cheapest?.pricePaise ?? 0,
     fromMrpPaise: cheapest?.mrpPaise ?? 0,

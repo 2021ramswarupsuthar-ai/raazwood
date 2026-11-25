@@ -29,3 +29,22 @@ export const DELIVERY_DAYS = {
 export const SERVICEABLE_STATES: string[] | 'ALL' = process.env.SERVICEABLE_STATES
   ? process.env.SERVICEABLE_STATES.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
   : 'ALL';
+
+// Trust points shown in the top bar, the strip under the hero and on product pages.
+// Only facts that are always true for this store are listed here. Add warranty / return terms through the
+// optional env variables below ONLY after the owner has decided them (they appear next to the claims).
+export const USPS = [
+  { key: 'wood', title: '100% solid sheesham', text: 'Real wood, not veneer on board' },
+  { key: 'delivery', title: 'Delivery across India', text: 'See charge and days for your pincode' },
+  { key: 'pay', title: 'Secure UPI payment', text: 'Pay with any UPI app' },
+  { key: 'help', title: 'Help on WhatsApp', text: 'Custom sizes and questions' },
+] as const;
+
+export const POLICY = {
+  // e.g. NEXT_PUBLIC_WARRANTY_TEXT="10-year warranty against termite and borer"  (leave empty to hide)
+  warranty: process.env.NEXT_PUBLIC_WARRANTY_TEXT ?? '',
+  // e.g. NEXT_PUBLIC_RETURNS_TEXT="7-day replacement for transit damage"
+  returns: process.env.NEXT_PUBLIC_RETURNS_TEXT ?? '',
+  // top announcement bar, e.g. NEXT_PUBLIC_OFFER_BANNER="Festive sale: use code SAMPLE10 for 10% off"
+  offerBanner: process.env.NEXT_PUBLIC_OFFER_BANNER ?? '',
+} as const;
