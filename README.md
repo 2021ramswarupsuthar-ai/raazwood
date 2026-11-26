@@ -1,6 +1,6 @@
 # Raazwood: E-commerce Website (Krishana Art Palace)
 
-> **Code status (23 Nov 2026): MVP from Sprints 0-5 is built and runs end-to-end on a local PostgreSQL database.** Typecheck, lint, 65 unit tests, 52 e2e runs (26 tests x desktop/mobile) and `next build` pass. Not yet tried with real Razorpay / MSG91 / Resend / WhatsApp accounts. See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
+> **Code status (26 Nov 2026): MVP from Sprints 0-5 is built, with a redesigned storefront and admin, and runs end-to-end on a local PostgreSQL database.** Typecheck, lint, 70 unit tests, 52 e2e runs (26 tests x desktop/mobile) and `next build` pass. Not yet tried with real Razorpay / MSG91 / Resend / WhatsApp accounts. See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
 
 ## Quick start (on your computer)
 
@@ -23,6 +23,9 @@ All `db:*` scripts read `.env.local` (then `.env`) through `dotenv-cli`, because
 - **Customer login:** with no SMS provider configured, `npm run dev` prints the one-time code in the terminal **and** shows it on the login page (development only; production refuses OTP login until MSG91 is set up).
 - **Payment:** with no Razorpay keys, set `UPI_VPA=anything@upi` in `.env.local` to use the manual UPI flow: the order page shows a QR code, you type any 12-digit number as the UTR, then confirm it in Admin > Orders. With Razorpay **test** keys the Razorpay window opens instead.
 - **Coupon:** `SAMPLE10` gives 10% off (max ₹2,000) on goods above ₹5,000.
+- **Contact details:** set `NEXT_PUBLIC_PHONE` and `NEXT_PUBLIC_WHATSAPP` in `.env.local` (and later in Vercel).
+- **Optional storefront text:** `NEXT_PUBLIC_OFFER_BANNER`, `NEXT_PUBLIC_WARRANTY_TEXT`, `NEXT_PUBLIC_RETURNS_TEXT` show the announcement bar / warranty / returns lines. They are empty by default so the site never promises something the owner has not decided.
+- **Homepage hero:** Admin > Homepage hero (table animation, product photos or banner).
 - **Messages:** order confirmations and status updates are printed in the terminal until Resend / MSG91 / WhatsApp are configured.
 
 Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dashboard add a webhook to `https://<your-domain>/api/webhooks/razorpay` with events `payment.captured`, `order.paid`, `payment.failed` and copy its secret to `RAZORPAY_WEBHOOK_SECRET`. For local testing expose localhost with a tunnel (ngrok / cloudflared).
@@ -34,6 +37,8 @@ Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dash
 | Area | Status |
 |---|---|
 | Storefront: home, shop with filters (price, in stock), sorting and pagination, category pages, product, header search with suggestions, cart, checkout, order tracking, invoice | Built |
+| Storefront design: announcement bar, trust strip, product cards with savings, product page with zoom gallery, delivery/returns/care accordions and mobile sticky buy bar, custom-size WhatsApp banner and latest guides on the home page, floating WhatsApp button | Built. Real product photos still needed (neutral placeholder until then) |
+| Admin design: sidebar menu with pending counts, dashboard with 14-day sales chart, top products, recent orders and low stock, coloured status badges | Built |
 | Customer accounts: phone OTP login (no password), profile, saved addresses, order history (earlier guest orders with the same phone are linked automatically), wishlist, checkout pre-fill. Guest checkout still allowed | Built. **Needs MSG91 DLT template for production SMS** |
 | Reviews: logged-in customers, one per product, "Verified purchase" badge, admin approval, AggregateRating JSON-LD | Built |
 | Coupons: percent (with cap) or flat, minimum order, dates, usage limit; GST recalculated on the discounted value; shown on invoice | Built, unit-tested |
@@ -51,8 +56,8 @@ Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dash
 | Motion: intro logo animation (infinity into the two O's), scroll-driven table hero (top view to 3D front view), reveal animations, reduced-motion fallback | Built using pure CSS 3D + GSAP (§3A option C). **Real scroll behaviour must be tried on a device** |
 | AI assistant v1: FAQ + product search + pincode answers (uses admin delivery zones), free Gemini tier + optional fallback provider, rule-based mode with no AI, PII redaction, rate/daily limits | Built (retrieval-then-answer, not a tool loop). **Needs real key test** |
 | Static/legal pages (shipping, returns, privacy, terms) | **DRAFT templates with [placeholders]: owner and legal review required** |
-| Tests: 65 unit tests (node:test), 26 Playwright e2e tests (desktop + mobile), CI workflow with migration drift check | Unit and e2e pass locally (23 Nov 2026). CI on GitHub **not yet run** |
-| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, reviews with photos, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), image upload (paste Cloudinary URLs for now), strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
+| Tests: 70 unit tests (node:test), 26 Playwright e2e tests (desktop + mobile), CI workflow with migration drift check | Unit and e2e pass locally (26 Nov 2026). CI on GitHub **not yet run** |
+| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, reviews with photos, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), product image upload (paste image URLs for now; hero/banner upload is built), marketplace stock/price sync, strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
 
 Brand assets in `public/brand` were cut from the supplied PNG logos. A true vector (SVG) logo is still recommended.
 
@@ -127,7 +132,7 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 | Backend / API | **Next.js Route Handlers + Server Actions (Node.js, TypeScript)** | Runs as Vercel serverless functions. One repo, one deploy, no separate server to pay for. Go/separate REST server is unnecessary at this scale. |
 | Database | **PostgreSQL on Neon** (via Vercel Marketplace) | Free tier, real relational DB (orders, stock, payments need transactions). |
 | ORM | **Prisma** (or Drizzle) | Type-safe queries, migrations. |
-| Images | **Cloudinary** (free tier) or **Bunny.net Storage + CDN** | Auto resize/WebP/AVIF. **As built:** admin pastes image URLs (Cloudinary allowed in `next.config.mjs`); an upload widget is a later item. |
+| Images | **Cloudinary** (free tier) or **Bunny.net Storage + CDN** | Auto resize/WebP/AVIF. **As built:** product images are pasted as URLs (Cloudinary allowed in `next.config.mjs`); homepage hero and banner images are uploaded in admin, resized with `sharp` to 2000/900 px WebP and stored in PostgreSQL (served from `/media/<id>`). |
 | Auth | Planned: Auth.js. **As built:** small custom auth with `jose` JWT cookies. Customers: phone OTP (MSG91), hashed codes, 30-day session. Admin: email + bcrypt password, 12 h session (2FA later) | Indian users prefer mobile OTP. Guest checkout allowed. Fewer moving parts than Auth.js for one OTP flow. |
 | Payments | **UPI** — see §6 | Razorpay (default) or manual UPI fallback, chosen by `PAYMENT_PROVIDER` / available keys (`src/server/payments-config.ts`). |
 | Styling | **Tailwind CSS** (shadcn/ui not used: a handful of custom components was enough) | Fast, accessible components. |
@@ -158,6 +163,8 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 - Static pages: About, Contact, Shipping, Returns & Refund, Privacy, Terms, FAQ
 - Blog / buying guides (SEO content)
 
+**As built also:** "Also available on" Amazon / Flipkart / Meesho links per product, floating WhatsApp, trust strip and an optional offer bar.
+
 ### 3.2 Admin panel (MVP)
 - Secure login
 - Product CRUD (images, variants, stock, SEO title/description, slug)
@@ -168,6 +175,8 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 - Coupons / discounts
 - Basic dashboard (sales, orders, low stock)
 - CSV export (orders, products)
+
+**As built also:** homepage hero control with image upload, per-product marketplace links, delivery zones, audit log and a redesigned dashboard.
 
 ### 3.2A AI assistant (customer help)
 Site-wide chat assistant for product advice, delivery/pincode, payment help, order tracking, policies and human handover. Full spec in §3B.
@@ -207,6 +216,8 @@ Rules for any option:
 - **Fallback:** low-end devices, `Save-Data`, slow network or `prefers-reduced-motion` get a static hero image (or option C) automatically.
 - The hero **`<h1>`, tagline and CTA are real HTML text** (not inside canvas/image), so Google can read them.
 - Hero poster image is preloaded and is the **LCP element**. The 3D/canvas layer loads lazily after first paint.
+
+**As built:** the scroll table (option C) is the default. Admin > Homepage hero can switch it to a **product photo animation** (up to 6 photos, cross-fade with slow zoom) or **promotional banners** (up to 6, optionally clickable). A mode with no visible image falls back to the table, reduced-motion users get no autoplay or zoom, and there is always one real `<h1>`.
 
 ### 3A.3 Site-wide animations
 - Smooth scrolling (Lenis) and scroll-reveal for sections, cards and headings (fade/slide/stagger)
@@ -347,6 +358,7 @@ raazwood/
 │  │  ├─ blog/, faq/, furniture-in/[city]/, legal pages
 │  │  ├─ admin/               # protected admin (middleware + requireAdmin in every page/action)
 │  │  ├─ api/                 # route handlers: checkout, quote, pincode, auth/otp, wishlist, reviews, search, webhooks, cron
+│  │  ├─ media/[id]/          # serves uploaded hero/banner images
 │  │  ├─ sitemap.ts, robots.ts, layout.tsx
 │  ├─ components/             # UI (server and client components)
 │  ├─ config/                 # store settings, states, cities, FAQ
@@ -364,7 +376,7 @@ raazwood/
 
 ## 5. Data Model (core tables)
 
-**As built** (`prisma/schema.prisma`): `Customer` (phone login), `OtpCode`, `Address`, `WishlistItem`, `Category`, `Product` (images as URL list, `deletedAt` soft delete), `Variant` (size/pack/SKU/price/stock/delivery charge), `Order` (with coupon, payment method, UTR), `OrderItem` (price snapshot + discount share), `Payment`, `Coupon`, `Review`, `BlogPost`, `DeliveryZone` (the plan's `PincodeZone`, per state), `AdminUser`, `AuditLog`, `Counter` (invoice numbers).
+**As built** (`prisma/schema.prisma`): `Customer` (phone login), `OtpCode`, `Address`, `WishlistItem`, `Category`, `Product` (images as URL list, `deletedAt` soft delete), `Variant` (size/pack/SKU/price/stock/delivery charge), `Order` (with coupon, payment method, UTR), `OrderItem` (price snapshot + discount share), `Payment`, `Coupon`, `Review`, `BlogPost`, `DeliveryZone` (the plan's `PincodeZone`, per state), `AdminUser`, `AuditLog`, `Counter` (invoice numbers), `ProductMarketplace` (Amazon/Flipkart/Meesho link per product), `SiteImage` + `HeroSlide` + `SiteSetting` (homepage hero).
 
 Not needed yet / later: `Cart` (the cart lives in the browser and is re-priced on the server), `Shipment` (status on the order for now), `ChatSession`, `ChatMessage`, `Handoff`/`Lead`, `KnowledgeArticle` (assistant v2).
 

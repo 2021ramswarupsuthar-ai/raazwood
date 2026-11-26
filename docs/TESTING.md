@@ -1,6 +1,6 @@
 # Testing report and test plan
 
-Latest run: **23 Nov 2026**, Windows, Node 24, PostgreSQL 16 in Docker (`npm run db:up`), `npm run dev`.
+Latest run: **26 Nov 2026**, Windows, Node 24, PostgreSQL 16 in Docker (`npm run db:up`), `npm run dev`.
 
 ## 1. What was actually run (results)
 
@@ -8,7 +8,7 @@ Latest run: **23 Nov 2026**, Windows, Node 24, PostgreSQL 16 in Docker (`npm run
 |---|---|
 | `npm run typecheck` (whole project, strict) | **Pass** |
 | `npm run lint` | **Pass** (no warnings) |
-| Unit tests (`npm test`, node:test): money, GST split invariants, pricing/shipping, **coupon rules and discount allocation (GST on the discounted value)**, pincode to state, Razorpay signatures, order status machine, invoice FY numbering, rate limiter, validators, SEO JSON-LD, assistant, **phone normalisation, OTP hashing, CSV escaping / formula injection, UPI link and UTR checks, blog text format** | **65 / 65 pass** |
+| Unit tests (`npm test`, node:test): money, GST split invariants, pricing/shipping, **coupon rules and discount allocation (GST on the discounted value)**, pincode to state, Razorpay signatures, order status machine, invoice FY numbering, rate limiter, validators, SEO JSON-LD, assistant, **phone normalisation, OTP hashing, CSV escaping / formula injection, UPI link and UTR checks, blog text format, marketplace link validation, homepage hero settings** | **70 / 70 pass** |
 | `npm run build` (production) | **Pass** (29 pages) |
 | `prisma migrate diff` committed migrations vs `schema.prisma` | **No difference** |
 | Playwright e2e (`E2E_BASE_URL=http://localhost:3000 UPI_VPA=… npx playwright test`) against the dev server, desktop + mobile (Pixel 7) | **52 / 52 pass** |
@@ -29,6 +29,12 @@ Manual walk-through done on localhost:
 3. React hydration warning on every page (the intro script sets `data-intro` on `<html>` before hydration). Fixed with `suppressHydrationWarning` on `<html>` only.
 4. Stale cart items blocked checkout with no way out (see above). Fixed.
 5. e2e test "add to cart, change quantity" expected the King price, but the page preselects the cheapest in-stock size (Queen). Test corrected.
+
+### Added since 23 Nov (checked on localhost)
+- Redesigned storefront and admin (screens checked on desktop; admin dashboard, orders list, product page).
+- Marketplace links: wrong-platform link rejected, saved links shown on the product page.
+- Homepage hero: real uploads through the admin route (3200x2000 became 2000x1250 WebP), invalid/too small/unsafe-link uploads rejected, photo and banner modes on desktop and phone, caching (304).
+- One e2e test occasionally times out on the first run right after the dev server starts (first compile); it passes on re-run.
 
 ## 2. NOT run yet: you must run these before launch
 1. **Razorpay TEST mode, manual UAT** (checklist below).
@@ -62,6 +68,9 @@ Manual walk-through done on localhost:
 - [ ] Delivery zones: block a state, check product pincode checker, checkout and assistant all agree
 - [ ] CSV exports open correctly in Excel (₹ and names, no formulas)
 - [ ] Remove the SAMPLE products, the SAMPLE10 coupon and the SAMPLE guides
+- [ ] Homepage hero: upload real product photos from a phone, check the crop on a real phone, switch modes
+- [ ] Open every marketplace link once; confirm it points to the same product
+- [ ] Production database: confirm `prisma migrate deploy` ran (new tables for marketplace links and hero images)
 
 ## 4. Known limitations / risks
 - Pincode to state mapping is approximate; the customer-selected state is the tax authority.
