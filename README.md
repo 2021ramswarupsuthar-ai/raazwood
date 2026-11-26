@@ -2,6 +2,8 @@
 
 > **Code status (26 Nov 2026): MVP from Sprints 0-5 is built, with a redesigned storefront and admin, and runs end-to-end on a local PostgreSQL database.** Typecheck, lint, 70 unit tests, 52 e2e runs (26 tests x desktop/mobile) and `next build` pass. Not yet tried with real Razorpay / MSG91 / Resend / WhatsApp accounts. See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
 
+> **Planned additions (benchmark of 5 competitor furniture sites, 26 Nov 2026):** see [§3C](#3c-benchmark-additions-planned). **Not built yet.** Payment methods (cards / net banking / EMI) and an installation service or installation field are intentionally **not** part of this list.
+
 ## Quick start (on your computer)
 
 Requirements: **Node.js 22.18+** and **PostgreSQL** (Docker Desktop for the local database below, or a free Neon database).
@@ -57,7 +59,8 @@ Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dash
 | AI assistant v1: FAQ + product search + pincode answers (uses admin delivery zones), free Gemini tier + optional fallback provider, rule-based mode with no AI, PII redaction, rate/daily limits | Built (retrieval-then-answer, not a tool loop). **Needs real key test** |
 | Static/legal pages (shipping, returns, privacy, terms) | **DRAFT templates with [placeholders]: owner and legal review required** |
 | Tests: 70 unit tests (node:test), 26 Playwright e2e tests (desktop + mobile), CI workflow with migration drift check | Unit and e2e pass locally (26 Nov 2026). CI on GitHub **not yet run** |
-| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, reviews with photos, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), product image upload (paste image URLs for now; hero/banner upload is built), marketplace stock/price sync, strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
+| Benchmark additions ([§3C](#3c-benchmark-additions-planned)): per-product lead time, variant selectors with price per option, more filters, spec table, product image upload, warranty + return/damage claims, custom/bulk enquiry + Leads, offers display, notify-me, collections, cross-sell, per-product FAQ, review photos, newsletter, catalogue PDF, expert callback / video call | **Planned (not built)** |
+| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), product image upload (paste image URLs for now; hero/banner upload is built; planned in §3C.1), marketplace stock/price sync, strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
 
 Brand assets in `public/brand` were cut from the supplied PNG logos. A true vector (SVG) logo is still recommended.
 
@@ -81,6 +84,7 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 ### Non-goals (for now)
 - Cards / net banking / COD / EMI (later sprint, payment layer is built to allow this)
 - Mobile app, multi-vendor marketplace, multi-language
+- Expert installation service and an installation field: products ship **pre-assembled or self-assembly** only
 
 ---
 
@@ -182,7 +186,79 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 Site-wide chat assistant for product advice, delivery/pincode, payment help, order tracking, policies and human handover. Full spec in §3B.
 
 ### 3.3 Later sprints (backlog)
-Cards/net banking/COD · reviews with photos · abandoned-cart reminders · shipping partner integration (Shiprocket etc.) · multi-warehouse · Hindi language · loyalty/referrals · Google Merchant Center feed · PWA.
+Cards/net banking/COD · abandoned-cart reminders · shipping partner integration (Shiprocket etc.) · multi-warehouse · Hindi language · loyalty/referrals · Google Merchant Center feed · PWA.
+
+Benchmark-driven additions (lead time, warranty and claims, custom/bulk enquiry, offers display and more) are planned in [§3C](#3c-benchmark-additions-planned).
+
+---
+
+## 3C. Benchmark additions (planned)
+
+Source: a read of five competitor sites (Khaticraft, Sona Arts, Wooden Street, Insaraf, The Timber Guy), 26 Nov 2026, compared with this README. Everything below is **planned, not built**. Items marked *(owner decision)* need a business input from §13 before coding.
+
+**Explicitly out of scope here:** payment methods (cards / net banking / EMI stay as in §1 and §3.3) and any installation service or installation field (products are pre-assembled or self-assembly, so no "Expert Assembly" option).
+
+### 3C.1 Product & catalogue
+- **Lead time per product.** `fulfilmentType` (`READY_TO_SHIP` / `MADE_TO_ORDER` / `CUSTOM`) plus `productionDaysMin/Max`. Shown on product card, product page, cart and checkout. Estimated delivery = production days + the state's delivery days from `DeliveryZone`. The order confirmation message repeats it as an estimate.
+- **Variant selectors with price per option.** Product options (finish, size, storage type, wood) shown as selectors; each option shows its own price and switches gallery, SKU and stock without a full reload. Finish options use **swatch images**. Decide per option whether each combination gets its own URL (better SEO, needs canonicals) or a query parameter.
+- **More filters.** Room, category, size, finish, storage type, seater count, wood, collection, plus the existing price and in-stock. Filtered URLs stay `noindex` as in §7.
+- **Specification table on every product.** Dimensions in cm and inches, mattress size (beds), primary and secondary material, finish, pack content, SKU, weight (for freight), country of origin. Plus a short **natural-wood disclaimer** (grain, knots and shade vary; dimensions may differ slightly from the photos) *(owner decision: exact wording, tolerance)*.
+- **Per-product FAQ** (editable in admin, `FAQPage` JSON-LD per product page).
+- **Product image upload in admin.** Multiple images per product, drag to reorder, alt text, image type (main, angle, detail, dimension drawing, in-room look). Resized to WebP like the hero images. Replaces pasting image URLs.
+- **Cross-sell.** "Frequently bought together" and "Complete your bedroom" blocks, chosen by the admin per product.
+- **Collections and merchandising.** Design series (e.g. a named collection), flags for Bestseller and Featured, **New launches** (auto: added in the last 60 days), "Customer favourites". Homepage sections are driven from these.
+
+### 3C.2 Pricing & offers display
+- Show **"You pay ₹X with coupon"** on product cards and product page when a public or auto-applied coupon exists (uses the existing coupon engine, GST recalculated on the discounted value).
+- An **Offers page** listing active public coupons with terms; the existing announcement bar can point to it.
+- Honest pricing rules: MRP must be a price actually charged or listed before; a **sale countdown** only when the sale really ends at that time; no fake urgency. Have the wording reviewed (consumer-protection rules on misleading prices and dark patterns).
+
+### 3C.3 Trust: warranty, returns and claims
+- **Warranty page with real terms** (duration, what is covered, what is not, how to claim) *(owner decision)*. `NEXT_PUBLIC_WARRANTY_TEXT` shows the one-line summary and links to it.
+- **Warranty claim flow:** order ID + phone OTP, description, photos or video. Creates a ticket in admin; the response-time promise is shown on the page.
+- **Return / damage claim (RMA)** from the order page: customer reports within a configurable window after delivery (days set in `src/config/store.ts`) with photos and an optional unboxing-video link. Claim statuses: `REQUESTED` → `APPROVED` / `REJECTED` → `PICKUP_SCHEDULED` → `REFUNDED` / `REPLACED` / `REPAIRED`. Admin screen with notes, customer notifications on each change, linked to the existing Refunded order status. Eligible reasons and exclusions (e.g. change of mind, custom orders) are written in the Returns policy *(owner decision)*.
+- **Cancellation window** configurable (e.g. before dispatch or within N hours) *(owner decision)*.
+- **Merchant details** on the product page and footer: seller name, registered address, GSTIN (if registered), support phone/email, country of origin. **Grievance Redressal** page with officer name and email (E-Commerce Rules 2020).
+- New policy pages: Warranty, Payment policy, Care guide, After-sales service. Refund deductions (if any, e.g. a gateway fee) must be stated in the Returns policy *(owner decision)*.
+
+### 3C.4 Custom, bulk and lead capture
+- **Custom furniture enquiry form:** product type, dimensions, finish, wood, quantity, budget, city/pincode, phone, reference photos (limited file types and size), consent checkbox. Creates a `Lead` of type `CUSTOM`.
+- **Bulk / hotel / restaurant enquiry page** (`Lead` type `BULK`).
+- **Talk to an expert:** callback request and video-call request with the working hours shown; WhatsApp link prefilled with the product link. Same `Lead` table (`CALLBACK`, `VIDEO_CALL`) and the same handoff target as the AI assistant (§3B).
+- **Admin Leads inbox:** status (new, contacted, quoted, won, lost), notes, owner notified on WhatsApp/email. Custom orders show their own lead time ("after design approval, N days") *(owner decision)*.
+- **Catalogue PDF download**, generated from active products (also useful to share on WhatsApp).
+- **Newsletter signup** with consent (DPDP), unsubscribe link in every mail.
+
+### 3C.5 Discovery & engagement
+- **Search upgrades:** trending searches (admin-curated), recent searches, and a no-result state that suggests popular categories.
+- **Recently viewed** and **guest wishlist** (kept in the browser, merged into the account after OTP login).
+- **"Notify me" when back in stock** (phone or email, sent once when stock rises above zero).
+- **Quick view** and **Add to cart** directly from product cards; **Buy Now** on the product page (goes straight to checkout).
+- **Reviews:** photos, city and date shown with the "Verified purchase" badge (builds on the existing review system). A **Customer stories** page with permission. Do not copy reviews from Amazon / Flipkart / Meesho unless the platform's terms allow it.
+- **About page** with real workshop/factory photos or a short video and only certifications that are really held.
+- **Order lookup without login:** order ID + phone or email on the tracking page, in addition to `/account`.
+
+### 3C.6 Physical presence (only if the business has a showroom or pickup point)
+- Store / showroom page with map, hours and a visit-booking form.
+- **Self-pickup** at checkout (pickup address, "ready in N days"), controlled by a flag in `DeliveryZone`/store config.
+
+### 3C.7 Later
+PWA, extra categories (mattresses, rugs, lamps), dealer / franchise page, international shipping page, product videos.
+
+### 3C.8 Guardrails taken from the benchmark
+- **No placeholder text in production.** CI scans the rendered pages and legal pages for leftovers (`[placeholder]`, `lorem`, "MyCompany", "Dynamic Snippet", empty template blocks) and fails the build.
+- "Free delivery" or "free installation" wording is used only when it matches `DeliveryZone` charges and the real service (no installation is offered).
+- Uploads (claims, custom enquiries): allowed types and size limits, virus/format checks where possible, Turnstile on public forms, and rate limits.
+- Claim and lead photos are treated as personal data: stored privately, access only for admin, retention period stated in the Privacy Policy.
+
+### 3C.9 Sprint mapping
+| When | Items |
+|---|---|
+| **Sprint 6a (before launch)** | 3C.1 lead time, variant selectors, filters, spec table, image upload; 3C.3 warranty page, return/damage claims, merchant details, grievance page; 3C.4 custom and bulk enquiry + admin Leads; 3C.8 placeholder CI check |
+| **Sprint 7** | 3C.1 per-product FAQ, cross-sell, collections; 3C.2 offers display and Offers page; 3C.4 expert callback / video call, catalogue PDF, newsletter; 3C.5 search upgrades, recently viewed, guest wishlist, notify-me, quick view / Buy Now, review photos, customer stories, About page, order lookup |
+| **Sprint 8** | 3C.6 showroom / self-pickup (if applicable); 3C.7 later items |
+
+Each item follows the Definition of Done in §8 (tests, accessibility, mobile, SEO, docs).
 
 ---
 
@@ -378,6 +454,8 @@ raazwood/
 
 **As built** (`prisma/schema.prisma`): `Customer` (phone login), `OtpCode`, `Address`, `WishlistItem`, `Category`, `Product` (images as URL list, `deletedAt` soft delete), `Variant` (size/pack/SKU/price/stock/delivery charge), `Order` (with coupon, payment method, UTR), `OrderItem` (price snapshot + discount share), `Payment`, `Coupon`, `Review`, `BlogPost`, `DeliveryZone` (the plan's `PincodeZone`, per state), `AdminUser`, `AuditLog`, `Counter` (invoice numbers), `ProductMarketplace` (Amazon/Flipkart/Meesho link per product), `SiteImage` + `HeroSlide` + `SiteSetting` (homepage hero).
 
+**Planned for §3C:** `ProductImage` (replaces the URL list: type, alt, sort order), `ProductOption` / `OptionValue` (finish, size, storage, wood, with swatch image and per-option price), on `Product`: `fulfilmentType`, `productionDaysMin/Max`, `specs` (structured), `faqs`, flags `isBestseller` / `isFeatured`; `Collection` + `CollectionItem`; `RelatedProduct` (cross-sell); `ReturnClaim` + `ClaimMedia` (RMA, status history); `WarrantyClaim` (or one `SupportTicket` table with a type); `Lead` (type CUSTOM / BULK / CALLBACK / VIDEO_CALL, status, notes, attachments); `Subscriber` (consent, unsubscribe token); `StockAlert`; `Review` gets photos and city.
+
 Not needed yet / later: `Cart` (the cart lives in the browser and is re-priced on the server), `Shipment` (status on the order for now), `ChatSession`, `ChatMessage`, `Handoff`/`Lead`, `KnowledgeArticle` (assistant v2).
 
 Rules:
@@ -547,6 +625,14 @@ Scripts: `dev` · `build` · `vercel-build` (migrate + build, used by Vercel) ·
 - [ ] WhatsApp business number
 - [ ] FAQs, return/warranty/care policies and delivery timelines (knowledge base for the AI assistant)
 - [ ] Google AI Studio account / API key for the assistant (free)
+- [ ] (§3C) Warranty terms: duration, covered / not covered, claim process and response time
+- [ ] (§3C) Return and damage-report window, eligible reasons, exclusions, cancellation rule, any refund deduction
+- [ ] (§3C) Lead time per product: ready-to-ship vs made-to-order, production days, custom-order lead time
+- [ ] (§3C) Dimensions in cm and inches for every product, mattress sizes for beds, secondary materials, weight
+- [ ] (§3C) Finish swatch photos (one per finish) and a short natural-wood disclaimer you are happy with
+- [ ] (§3C) Real workshop / factory photos or video, real certifications (if any), customer photos with permission
+- [ ] (§3C) Grievance officer name and email; registered address; showroom or pickup address and hours (if any)
+- [ ] (§3C) Working hours for callback and video-call support
 
 ---
 
@@ -563,6 +649,10 @@ Scripts: `dev` · `build` · `vercel-build` (migrate + build, used by Vercel) ·
 | Missing 3D model / vector logo delays hero | Decide option A/B/C in Sprint 0.5; start with image-sequence fallback |
 | AI assistant gives a wrong price/policy or leaks data | Tool-grounded answers only, server-side validation, verification before order data, eval set in CI, human handover |
 | Free-tier limits hit, model/terms change, or content used for provider training | Reply cache, rate limits, fallback provider + rule-based mode, adapter to switch vendor, no personal data sent to LLM |
+| Misleading MRP / fake countdown (consumer-protection risk) | Real MRP only, genuine sale end dates, legal review of wording (§3C.2) |
+| Fraudulent or abusive return / warranty claims | Claim window, photo or video evidence, admin approval, audit log |
+| Public upload forms abused (spam, malware) | File type and size limits, Turnstile, rate limits, private storage (§3C.8) |
+| Placeholder text reaching production | CI scan for leftover placeholders (§3C.8) |
 | Scope creep | Strict sprint backlog; new ideas go to backlog |
 
 ---
