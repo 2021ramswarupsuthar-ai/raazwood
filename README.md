@@ -2,6 +2,8 @@
 
 > **Code status (26 Nov 2026): MVP from Sprints 0-5 is built, with a redesigned storefront and admin, and runs end-to-end on a local PostgreSQL database.** Typecheck, lint, 70 unit tests, 52 e2e runs (26 tests x desktop/mobile) and `next build` pass. Not yet tried with real Razorpay / MSG91 / Resend / WhatsApp accounts. See [Implementation status](#implementation-status) and `docs/TESTING.md` before deploying.
 
+> **Planned redesign (28 Nov 2026):** the homepage header becomes a **hero with two modes, switchable in admin: (1) promotional banners and (2) a 3D product showcase** (4-5 products in a thumbnail strip at the bottom; the selected product rotates in 3D above and the products alternate automatically). The rest of the storefront moves to a modern, current design and tech approach instead of a classic template look. See [§3A.2](#3a2-hero-section-banner-mode-and-3d-product-showcase-mode) and [§3D](#3d-storefront-redesign-modern-professional-and-conversion-focused-planned). **Not built yet.**
+
 > **Planned additions (benchmark of 5 competitor furniture sites, 26 Nov 2026):** see [§3C](#3c-benchmark-additions-planned). **Not built yet.** Payment methods (cards / net banking / EMI) and an installation service or installation field are intentionally **not** part of this list.
 
 ## Quick start (on your computer)
@@ -27,7 +29,7 @@ All `db:*` scripts read `.env.local` (then `.env`) through `dotenv-cli`, because
 - **Coupon:** `SAMPLE10` gives 10% off (max ₹2,000) on goods above ₹5,000.
 - **Contact details:** set `NEXT_PUBLIC_PHONE` and `NEXT_PUBLIC_WHATSAPP` in `.env.local` (and later in Vercel).
 - **Optional storefront text:** `NEXT_PUBLIC_OFFER_BANNER`, `NEXT_PUBLIC_WARRANTY_TEXT`, `NEXT_PUBLIC_RETURNS_TEXT` show the announcement bar / warranty / returns lines. They are empty by default so the site never promises something the owner has not decided.
-- **Homepage hero:** Admin > Homepage hero (table animation, product photos or banner).
+- **Homepage hero:** Admin > Homepage hero (today: table animation, product photos or banner; planned: banner mode or 3D product showcase mode, see §3A.2).
 - **Messages:** order confirmations and status updates are printed in the terminal until Resend / MSG91 / WhatsApp are configured.
 
 Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dashboard add a webhook to `https://<your-domain>/api/webhooks/razorpay` with events `payment.captured`, `order.paid`, `payment.failed` and copy its secret to `RAZORPAY_WEBHOOK_SECRET`. For local testing expose localhost with a tunnel (ngrok / cloudflared).
@@ -51,16 +53,17 @@ Razorpay (test mode first): put test keys in `.env.local`, then in Razorpay Dash
 | Delivery zones per state (deliver / don't, delivery days, extra charge) editable in admin; pincode to state is approximate, the customer-chosen state decides tax | Built. Default delivery days in `src/config/store.ts` are **placeholders** |
 | Stock reservation (30 min Razorpay / 24 h manual UPI), release of expired orders (lazy + daily cron) | Built, **needs DB integration test** |
 | Admin: login, dashboard, products + variants ("Set of 2" via pack qty) + archive/restore, categories, orders + status flow + search, customers, coupons, reviews, blog, delivery zones, payments reconciliation (daily), CSV export (orders, products, customers), audit log | Built |
-| Homepage hero controlled from Admin > Homepage hero: table animation (default), product photo animation (up to 6 photos) or promotional banners (clickable). Uploads are resized, cleaned and stored as WebP in two sizes (works on Vercel, no Cloudinary needed); with no active image the table animation shows | Built |
+| Homepage hero controlled from Admin > Homepage hero: table animation (default), product photo animation (up to 6 photos) or promotional banners (clickable). Uploads are resized, cleaned and stored as WebP in two sizes (works on Vercel, no Cloudinary needed) | Built (old modes). **To be replaced by banner mode + 3D product showcase mode ([§3A.2](#3a2-hero-section-banner-mode-and-3d-product-showcase-mode)), planned, not built** |
 | Also sold on Amazon / Flipkart / Meesho: per product checkbox + link in admin, links shown as "Also available on" on the product page (links checked against each platform's own domains) | Built |
 | Content: blog / buying guides (Article JSON-LD), FAQ page (FAQPage JSON-LD), cookie consent (analytics only after consent) | Built. SAMPLE guides to replace |
 | SEO: metadata, canonical, sitemap (products, categories, guides, city pages), robots, JSON-LD (Product + ratings, Breadcrumb, FAQ, Article, Organization), South India city pages, noindex on private and filtered pages | Built |
-| Motion: intro logo animation (infinity into the two O's), scroll-driven table hero (top view to 3D front view), reveal animations, reduced-motion fallback | Built using pure CSS 3D + GSAP (§3A option C). **Real scroll behaviour must be tried on a device** |
+| Motion: intro logo animation (infinity into the two O's), scroll-driven table hero (top view to 3D front view), reveal animations, reduced-motion fallback | Built using pure CSS 3D + GSAP. The **logo intro (infinity) animation and the table hero are to be removed**; the table hero is replaced by the 3D product showcase (§3A.2). Real behaviour must be tried on a device |
 | AI assistant v1: FAQ + product search + pincode answers (uses admin delivery zones), free Gemini tier + optional fallback provider, rule-based mode with no AI, PII redaction, rate/daily limits | Built (retrieval-then-answer, not a tool loop). **Needs real key test** |
 | Static/legal pages (shipping, returns, privacy, terms) | **DRAFT templates with [placeholders]: owner and legal review required** |
 | Tests: 70 unit tests (node:test), 26 Playwright e2e tests (desktop + mobile), CI workflow with migration drift check | Unit and e2e pass locally (26 Nov 2026). CI on GitHub **not yet run** |
 | Benchmark additions ([§3C](#3c-benchmark-additions-planned)): per-product lead time, variant selectors with price per option, more filters, spec table, product image upload, warranty + return/damage claims, custom/bulk enquiry + Leads, offers display, notify-me, collections, cross-sell, per-product FAQ, review photos, newsletter, catalogue PDF, expert callback / video call | **Planned (not built)** |
-| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), product image upload (paste image URLs for now; hero/banner upload is built; planned in §3C.1), marketplace stock/price sync, strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, real 3D model / 360 viewer, admin 2FA |
+| Storefront redesign ([§3D](#3d-storefront-redesign-modern-professional-and-conversion-focused-planned)): hero with banner mode + 3D product showcase mode, modern design system and tech upgrades, homepage structure, product card / product page / checkout polish, reach and tracking plan | **Planned (not built)** |
+| Not built yet (later sprints) | Cards / net banking / COD, Shiprocket, abandoned-cart reminders, assistant v2 (chat logs, order tracking in chat, KB editor), product image upload (paste image URLs for now; hero/banner upload is built; planned in §3C.1), marketplace stock/price sync, strict CSP, Turnstile bot check, shared (Redis) rate limiting, Sentry, Lighthouse CI, regional languages, admin 2FA |
 
 Brand assets in `public/brand` were cut from the supplied PNG logos. A true vector (SVG) logo is still recommended.
 
@@ -141,7 +144,7 @@ Brand assets in `public/brand` were cut from the supplied PNG logos. A true vect
 | Payments | **UPI** — see §6 | Razorpay (default) or manual UPI fallback, chosen by `PAYMENT_PROVIDER` / available keys (`src/server/payments-config.ts`). |
 | Styling | **Tailwind CSS** (shadcn/ui not used: a handful of custom components was enough) | Fast, accessible components. |
 | AI assistant | **Free-tier LLM API (default: Google Gemini API free tier)** behind a provider-agnostic adapter (`src/lib/ai/provider.ts`, plain `fetch`, no Vercel AI SDK). **As built:** retrieval-then-answer, no tool loop or streaming yet | Customer help chat grounded in live catalogue and policies, at zero cost to start. See §3B. |
-| Animation / 3D | Planned: GSAP + ScrollTrigger, Framer Motion, Lenis, three.js (R3F). **As built:** GSAP + CSS 3D transforms only | Scroll-driven hero, logo intro, micro-interactions. See §3A. |
+| Animation / 3D | GSAP + ScrollTrigger (scroll reveals), Framer Motion (UI and page transitions), CSS View Transitions, `three.js` + `@react-three/fiber` + `drei` for the hero 3D product showcase only (lazy loaded, client-only), optional Lenis smooth scroll | Modern, smooth motion with a 3D hero, while the heavy 3D code loads only after first paint and only on capable devices. See §3A and §3D. |
 | Validation | **Zod** | Shared schemas for client + server. |
 | Email / SMS / WhatsApp | Resend (email), MSG91 (OTP + order SMS), WhatsApp Cloud API (order updates) | Order confirmation + status updates. All optional; without them development prints messages to the console (`src/server/messaging.ts`). |
 | Monitoring | Vercel Analytics, Sentry (errors), Google Search Console, GA4 | **As built:** GA4 via `NEXT_PUBLIC_GA_ID`, loaded only after cookie consent. Sentry not added yet. |
@@ -262,58 +265,154 @@ Each item follows the Definition of Done in §8 (tests, accessibility, mobile, S
 
 ---
 
+## 3D. Storefront redesign: modern, professional and conversion-focused (planned)
+
+**Status:** planned, not built (28 Nov 2026). The functional requirements elsewhere in this README stay as they are; this section decides the look, the technology approach, the page structure and what keeps visitors on the site until they buy. The site must **not look like an old-style or template store**: it should feel current and premium, like a modern direct-to-consumer furniture brand. Visual details (spacing, exact fonts, layouts) are left to the designer / developer, within the rules below.
+
+**Goal:** the site should look like an established furniture brand, make a first-time visitor trust it within a few seconds, show products quickly, and make buying (UPI) easy on a mid-range phone. It must also reach more people than the owner's existing contacts (see 3D.6).
+
+### 3D.1 Design direction and modern tech
+**Look and feel (modern, not classic template):**
+- Warm, premium, editorial: cream backgrounds, wood-toned accents, large confident typography, generous white space, big full-bleed photography. Use the §1B tokens (`brand`, `brand-dark`, `ink`, `cream`); `brand-dark` for buttons and small text.
+- Two typefaces at most through `next/font`: an expressive modern serif (or display face) for headings and a clean sans for body, prices and UI.
+- Current layout patterns: **bento-style grids** for categories and features, large rounded cards, soft layered shadows, subtle glass / blur only on the sticky header and overlays, smooth scroll-reveal, sticky product galleries, horizontal swipe rails on mobile. No cluttered banners, no more than one primary CTA per section.
+- Optional **dark-mode** aware tokens (cream/ink inverted) so the site respects the visitor's system theme; decide in Sprint 0 after checking brand colour contrast.
+- Real photography (furnished rooms, grain and joinery close-ups, workshop) carries the design, with consistent image ratios and blur-up placeholders.
+- One consistent component set: buttons, cards, badges, fields, toasts, skeleton loaders, empty states, with polished micro-interactions (hover, press, add-to-cart feedback).
+- Mobile first (most visitors are on Android over 4G); desktop is the enhanced layout.
+- Accessible by default (contrast, focus states, 44 px tap targets, WCAG 2.1 AA).
+
+**Technology approach (current, but kept fast):**
+- Latest stable **Next.js App Router** with React Server Components, streaming and **Partial Prerendering / ISR** where supported, so the page shell appears instantly and dynamic parts (price, stock, cart) stream in. Re-verify versions at build time.
+- **Tailwind CSS** design tokens + a small in-house component library; **Framer Motion** for UI transitions, **CSS View Transitions** for page-to-page transitions, GSAP for scroll scenes.
+- Hero 3D via `three.js` / `@react-three/fiber` (lazy) or 360 canvas frames (§3A.2).
+- Optimistic UI for cart and wishlist, prefetching of likely next pages, `next/image` with AVIF/WebP, edge caching, font subsetting.
+- **PWA** (installable, offline-friendly browsing of viewed products) moves up from the backlog to Sprint 7.
+- Every upgrade must keep the budgets in §3A.5 (LCP < 2.5 s, INP < 200 ms, CLS < 0.1, Lighthouse mobile >= 90). If a visual effect breaks a budget, the effect is simplified.
+
+### 3D.2 Homepage structure
+Top to bottom (each block is a server component with real HTML text):
+1. **Announcement bar** (real offer or delivery note only; optional, from `NEXT_PUBLIC_OFFER_BANNER`).
+2. **Header:** logo, search with suggestions, account, wishlist, cart with count, category / room mega menu. Sticky and compact on scroll, with a subtle blur. The hero sits directly under it.
+3. **Hero (two modes, switch in admin):** *Banner mode:* up to 6 clickable promotional banners with one clear headline and CTA each. *3D product showcase mode:* 4-5 products in a thumbnail strip at the bottom; the selected product rotates in 3D on the stage above and the products alternate automatically, each with price, "View product" and "Add to cart". Both modes keep real HTML text, a preloaded LCP image and a static fallback. Spec in §3A.2.
+4. **Trust strip:** solid sheesham wood, Pan-India delivery, secure UPI payment, plus warranty and returns lines **only** where the policy is real (§3C.3).
+5. **Shop by category / room** tiles with photos.
+6. **Bestsellers** and **New launches** (driven by the flags in §3C.1).
+7. **Why Raazwood / our craft:** short brand story with real workshop photos and only certifications really held.
+8. **Offers** (real public coupons, §3C.2).
+9. **Customer reviews** with city and "Verified purchase" (photos once §3C.5 is built).
+10. **Custom and bulk enquiry** block (§3C.4) and the existing custom-size WhatsApp banner.
+11. **Buying guides / blog** teasers (SEO and trust).
+12. **Newsletter signup** (with consent).
+13. **Footer:** brand line ("Raazwood, a brand of Krishana Art Palace"), merchant details, policy links, contact, social links.
+
+Not on the homepage: anything that pushes products below the first two screens, auto-playing video with sound, pop-ups on first load, and fake urgency.
+
+### 3D.3 Listing and product card
+- Card: main image with second-image swap on hover, name, price, MRP, saving, rating, lead-time chip (§3C.1), wishlist heart, quick add-to-cart.
+- Filters as a sticky sidebar on desktop and a bottom sheet on mobile; active filters shown as removable chips; sort control always visible; skeleton loaders while loading.
+- Clear empty and no-result states that suggest popular categories.
+
+### 3D.4 Product page (where the purchase decision happens)
+- Large gallery with zoom: main, angles, details, dimension drawing, in-room images.
+- Price block: price, MRP, saving, "You pay ₹X with coupon" (when real), GST-inclusive note.
+- Variant selectors with price per option and finish swatches (§3C.1); delivery estimate by pincode; lead time.
+- Primary **Add to cart** and **Buy now**; secondary WhatsApp enquiry (product link and pincode prefilled). **Sticky buy bar on mobile.**
+- Trust block near the button: secure UPI payment, delivery promise, warranty / returns summary (only real terms), "Also available on" marketplace links where set.
+- Spec table, care, natural-wood note, per-product FAQ, reviews, cross-sell ("Complete your bedroom"), recently viewed.
+
+### 3D.5 Cart and checkout
+- Slide-in mini cart; cart page with editable quantity, coupon field, clear delivery estimate and savings.
+- **Distraction-free checkout** (no mega menu, no promos): guest checkout allowed, saved addresses and phone pre-fill for returning customers, inline validation, visible progress, **UPI presented first and prominently**.
+- Order summary with GST-inclusive total, shipping and discount lines always visible; trust cues (secure payment, policy links) next to the pay button.
+- Clear failure and retry messages for payment; order confirmation page with next steps and WhatsApp / email confirmation.
+- Free-delivery progress bar only when it matches the real `DeliveryZone` charges.
+
+### 3D.6 Reaching customers and brand awareness
+These bring visitors to the site; the design above converts them.
+- **Search:** SEO plan in §7 (product pages, South India city pages, buying guides) remains the main free channel.
+- **Google:** Google Business Profile, Google Merchant Center product feed (moved up from the backlog in §3.3 to Sprint 7), Search Console.
+- **Social and content:** Instagram and Pinterest posts / reels from real workshop and room photos, YouTube videos of the craft and product care; each product page has share buttons and a WhatsApp "share this product" link. Open Graph images (1200x630) with the logo so links look good in WhatsApp.
+- **WhatsApp:** WhatsApp Business catalogue and broadcast lists (with consent), click-to-WhatsApp links from ads and posts.
+- **Paid (optional):** Google Ads and Meta ads geo-targeted to the five southern states, with UTM links and conversion events.
+- **Reviews and referrals:** automatic review request after delivery, customer stories page (§3C.5), simple referral or share-and-save coupon (later).
+- **Measurement:** GA4 e-commerce events (`view_item`, `add_to_cart`, `begin_checkout`, `purchase`) loaded after cookie consent; UTM tracking per channel.
+
+### 3D.7 Keeping visitors on the site
+- Fast pages first: LCP under 2.5 s on mobile; images in WebP/AVIF with fixed sizes; no layout shift.
+- Easy discovery: search with suggestions, trending searches, recently viewed, wishlist, notify-me when back in stock.
+- Help at the right moment: AI assistant (§3B), WhatsApp button, callback request (§3C.4).
+- **No dark patterns:** no fake countdowns, fake stock warnings or fake "people are viewing"; urgency only when real (§3C.2).
+
+### 3D.8 What to measure
+Bounce rate, product views per session, add-to-cart rate, checkout start to payment success, mobile vs desktop conversion, traffic by channel. Set baseline targets after the first weeks of real traffic and A/B test hero banners and product-page layouts one change at a time. Judge every design change by orders and Core Web Vitals, not by how it looks.
+
+### 3D.9 Sprint mapping
+| When | Items |
+|---|---|
+| **Sprint 6a (before launch)** | Hero with banner mode + 3D product showcase mode (replaces the table hero and old admin modes), modern design system and homepage structure (3D.1, 3D.2), product card and product page polish (3D.3, 3D.4), checkout polish (3D.5), product turntable photos, real photos and SVG logo in place |
+| **Sprint 7** | PWA, 3D.6 reach items (Merchant Center feed, social sharing, review requests, WhatsApp catalogue), GA4 e-commerce events, A/B tests (banner vs 3D showcase, layout variants) |
+| **Later** | Referral coupon, PWA, regional-language storefront |
+
+---
+
 ## 3A. Animation & Motion Design (Experience Layer)
 
 **Goal:** a premium, immersive, animated store that makes visitors stay longer and explore more, **without hurting speed or SEO**.
 
-### 3A.1 Intro / Logo animation (on first open)
-- Full-screen intro with the Raazwood logo drawing itself (SVG stroke animation): hexagon, tree branches grow, then the wordmark appears.
-- **The two "O"s in RAAZWOOD move toward each other and merge into an infinity (∞) loop, pulse once, then settle back into the wordmark.** The logo then shrinks and flies into the header position.
-- Duration about 2.5-3 s. **Skip button** always visible. Plays **once per session** (`sessionStorage`), so returning visitors and page navigation are not slowed down.
-- Page content is already rendered underneath (server-rendered) so crawlers and users on slow networks are never blocked by the intro.
-- Needs a **vector (SVG) logo with separate paths for each letter** (see §1B).
+### 3A.1 Intro / logo animation: removed
 
-### 3A.2 Scroll-driven Hero Section
-Sequence (pinned section, scroll controls the animation):
+**Decision (28 Nov 2026):** the full-screen intro (logo drawing itself, the two "O"s merging into an infinity loop) is **removed**. Visitors see the header hero straight away: faster first view, no skip button, no `sessionStorage` logic, no need for a letter-by-letter SVG logo. The logo appears normally in the header (and in the hero where the design needs it). Any existing intro code is deleted in Sprint 6a.
 
-1. **Stage 1 (top view):** wooden table seen from the top, with the logo / brand text (`RAAZWOOD`, tagline) engraved or printed on the table top.
-2. **Stage 2 (scroll):** camera tilts down smoothly and the table rotates into a **3D front/perspective view**, legs and details revealed. Headline, short text and CTA ("Shop Now") fade in.
-3. **Stage 3 (a little more scroll):** hero unpins and the table moves out as the next section (categories / bestsellers) slides in. Normal scrolling resumes.
+### 3A.2 Hero Section: banner mode and 3D product showcase mode
 
-Implementation options (decide in Sprint 0 with a quick prototype):
+**Decision (28 Nov 2026):** the header hero keeps **both** options and the owner switches between them in **Admin > Homepage hero**. The old scroll-driven table (top view to 3D front view) and the product-photo cross-fade are replaced by the 3D product showcase.
+
+**Mode 1: Banner mode.** Up to 6 promotional banners (clickable, uploaded in admin, WebP in two sizes as today), swipeable on mobile, with real HTML headline and CTA over each banner. First banner is the LCP element.
+
+**Mode 2: 3D product showcase mode.**
+- **Layout:** a large stage on top with the selected product shown in 3D / rotating view; at the **bottom a strip of 4 or 5 product thumbnails** (admin chooses which products and their order, from the existing catalogue).
+- **Behaviour:** the products **alternate automatically** (for example every 6-8 s): the current product rotates smoothly (turntable, about one full turn), then transitions to the next one, and the active thumbnail is highlighted with a progress ring. Clicking or tapping a thumbnail switches to that product immediately and pauses autoplay for a while; drag / swipe on the stage rotates it by hand.
+- **Per-product content on the stage:** name, short line, price (and MRP / saving), and two buttons: "View product" and "Add to cart" (or "Shop now"), all as real HTML text and links.
+- **Background and mood:** soft studio light, wood / cream gradient and subtle shadow under the product, brand colours from §1B. Mouse-move parallax tilt on desktop, gyroscope tilt optional on mobile.
+
+How the 3D look is produced (decide per product in the Sprint 0.5 prototype; the admin can mix them):
 
 | Option | How | Pros | Cons |
 |---|---|---|---|
-| **A. Real 3D model** (recommended if a model is available) | `three.js` + `@react-three/fiber` + `drei`, GLB model (Draco-compressed, under 1.5 MB), camera animated by GSAP ScrollTrigger | True 3D, reusable for product 360° views later | Needs a 3D model of a table; heavier on low-end phones |
-| **B. Image sequence on canvas** | 60-90 pre-rendered WebP frames (top view to front view), drawn on `<canvas>` according to scroll position | Looks identical on every device, light on GPU, very reliable | Needs a render (Blender) or photo set; frame download size (about 1-2 MB with WebP, lazy loaded) |
-| **C. CSS 3D transform** | Table-top and front photos using `perspective` + `rotateX` | Lightest, no extra library | Less realistic |
+| **A. Real 3D model (GLB)** | `three.js` + `@react-three/fiber` + `drei`, Draco-compressed GLB under 1.5 MB per product, lazy loaded | True 3D, drag to rotate, reusable for the product page 360 viewer | A model must be made for each showcase product (Blender / photogrammetry / 3D artist); heavier on low-end phones |
+| **B. 360 image sequence (turntable)** | 36-72 WebP frames per product shot on a rotating turntable (or rendered), drawn on `<canvas>` or swapped by frame | Looks identical on every device, very light on GPU, real product photos, cheapest to produce | Frames download (about 0.5-1.5 MB per product, lazy loaded); fixed camera height |
+| **C. Fallback: static photo + CSS 3D tilt** | One or two photos with `perspective` + `rotateY` and a slow zoom | Lightest, works everywhere | Less realistic |
 
-Rules for any option:
-- **Fallback:** low-end devices, `Save-Data`, slow network or `prefers-reduced-motion` get a static hero image (or option C) automatically.
-- The hero **`<h1>`, tagline and CTA are real HTML text** (not inside canvas/image), so Google can read them.
-- Hero poster image is preloaded and is the **LCP element**. The 3D/canvas layer loads lazily after first paint.
+Recommended start: **option B for all 4-5 showcase products** (fast to produce with a phone turntable, reliable on mid-range Android), and option A later for products where a model exists.
 
-**As built:** the scroll table (option C) is the default. Admin > Homepage hero can switch it to a **product photo animation** (up to 6 photos, cross-fade with slow zoom) or **promotional banners** (up to 6, optionally clickable). A mode with no visible image falls back to the table, reduced-motion users get no autoplay or zoom, and there is always one real `<h1>`.
+Rules for the showcase:
+- **Real HTML text for `<h1>`, product names, prices and links**, never inside canvas or images, so Google can read them. One `<h1>` for the page.
+- The first product's **poster image is preloaded and is the LCP element**. The 3D / canvas layer and the other products load lazily after first paint.
+- **Fallbacks:** low-end devices, `Save-Data`, slow networks and `prefers-reduced-motion` automatically get option C (static photo, no autoplay rotation, thumbnails still work). A "Pause animation" control is always available.
+- Pause rendering when the tab is hidden or the hero is off screen (IntersectionObserver); target 60 fps; animate only `transform` / `opacity` or the canvas; no layout shift.
+- Keep initial JS under the budget in §3A.5: the showcase code is dynamically imported and never blocks first paint, add-to-cart or navigation.
+- If a mode has no valid content (no active banners, or fewer than 2 showcase products), the hero falls back to a static brand hero (photo + headline + CTA), never to an empty area.
+- Admin: choose mode, choose products and order, set autoplay speed, upload / link the 360 frames or GLB per product, preview on desktop and mobile before publishing.
 
 ### 3A.3 Site-wide animations
 - Smooth scrolling (Lenis) and scroll-reveal for sections, cards and headings (fade/slide/stagger)
 - Product cards: hover zoom, second-image swap, quick "Add to cart" slide-up, wishlist heart pop
-- Category tiles with parallax; horizontal-scroll "Bestsellers" strip
+- Category tiles with a simple hover zoom; horizontal-scroll "Bestsellers" strip
 - Animated counters/trust badges (Pan-India delivery, solid sheesham, years of craft)
-- Product page: image zoom, optional **360° / 3D viewer** (later sprint), sticky add-to-cart bar, animated price/discount tag
+- Product page: image zoom, sticky add-to-cart bar, animated price/discount tag
 - Cart: slide-in mini cart drawer, "flying to cart" animation, animated progress bar for free-delivery threshold
 - Checkout: step transitions, success animation (check mark / confetti) on order confirmation
 - Page transitions between routes (View Transitions API / Framer Motion), skeleton loaders, micro-interactions on buttons and inputs
-- Custom cursor and magnetic buttons on desktop only
 - Subtle wood-grain / cream textured backgrounds, no heavy autoplay video
 
 ### 3A.4 Animation tech stack
 | Need | Library |
 |---|---|
 | Scroll timelines, pinning, SVG draw/morph | **GSAP + ScrollTrigger** (free for use) |
+| 3D hero showcase (option A) | **three.js + @react-three/fiber + drei** (lazy loaded, client-only); option B uses plain `<canvas>` |
 | React component animation, page transitions | **Framer Motion (Motion)** |
 | Smooth scrolling | **Lenis** |
-| 3D | **three.js + @react-three/fiber + drei** (lazy loaded, client-only) |
 | Lottie (small icon animations) | `lottie-react` (only where needed) |
 
 ### 3A.5 Performance & SEO guardrails (non-negotiable)
@@ -325,15 +424,15 @@ Many South India visitors will be on mid-range Android phones over 4G, so animat
 - No content hidden from crawlers: text and links exist in the HTML before animation runs; animation never gates navigation
 - Pause animations when the tab is hidden or the section is off-screen (IntersectionObserver)
 - Animation never blocks checkout: simplified, distraction-free checkout page
-- Device tiering: detect GPU/CPU (`navigator.hardwareConcurrency`, `deviceMemory`) and serve Full / Lite / Static experience
+- Device tiering: detect GPU/CPU (`navigator.hardwareConcurrency`, `deviceMemory`), `Save-Data` and network speed, and serve Full (3D showcase, reveals) / Lite (360 frames or static hero, reveals only) / Static experience
 
 ### 3A.6 Engagement targets
-Track with GA4 / Vercel Analytics: average engagement time, scroll depth, bounce rate, product views per session, add-to-cart rate. A/B test intro on/off and hero variants in later sprints. **If animation reduces conversion or Core Web Vitals, tone it down: engagement is only useful if it leads to orders.**
+Track with GA4 / Vercel Analytics: average engagement time, scroll depth, bounce rate, product views per session, add-to-cart rate. A/B test hero variants (banner vs 3D showcase) in later sprints. **If animation reduces conversion or Core Web Vitals, tone it down: engagement is only useful if it leads to orders.**
 
 ### 3A.7 Assets needed
-- [ ] SVG logo with separate letter paths (for the "OO to infinity" animation)
-- [ ] Table 3D model (GLB) **or** a Blender render / photo set for the frame sequence
-- [ ] Logo/text mock for engraving on the table top
+- [ ] SVG logo (single vector file plus reversed white version; separate letter paths no longer needed)
+- [ ] For the 3D product showcase: 4-5 hero products, each as a 360 turntable photo set (36-72 frames, same camera height, neutral background) or a GLB model, plus one clean poster photo per product
+- [ ] 3 to 6 real banner photos for banner mode (furnished room, workshop / craft, bestseller close-up), landscape 2000 px wide plus a portrait crop for mobile
 - [ ] Brand motion guidelines (easing, durations): proposed `ease: power3.out`, durations 0.4-0.8 s, stagger 0.08 s
 
 ---
@@ -530,7 +629,7 @@ Implementation requirements (both):
 | Sprint | Theme | Deliverables |
 |---|---|---|
 | **0** | Foundation | Repo, Next.js + TS + Tailwind, ESLint/Prettier/Husky, Neon DB + Prisma, env setup, CI (lint/test/build), Vercel project + preview deploys, domain DNS, design system/tokens, decisions on payment provider & image CDN |
-| **0.5** | Motion prototype | SVG logo animation (OO to infinity), scroll-hero prototype (pick option A/B/C), performance budget, reduced-motion + device tiering |
+| **0.5** | Motion prototype | Hero 3D product showcase prototype (pick option A/B/C per product, §3A.2), performance budget, reduced-motion + device tiering |
 | **1** | Catalogue + SEO base | Category/product pages, admin product CRUD, image pipeline, seed data, metadata, sitemap, robots, JSON-LD, breadcrumbs |
 | **2** | Discovery + Cart | Search, filters, sorting, wishlist, cart (guest + logged-in), variants & stock logic |
 | **3** | Checkout + UPI | Auth (OTP), addresses, pincode shipping, order creation, UPI payment + webhooks, confirmation page |
@@ -569,7 +668,7 @@ Each sprint: planning → build → test → demo → retro. Every sprint ends w
 | SEO | Lighthouse SEO + custom script, Rich Results Test | Meta, schema, sitemap validity |
 | Security | `npm audit`, OWASP ZAP baseline, manual review | See §10 |
 | AI assistant | Eval set of 100+ real customer questions (English/Hinglish/regional), automated checks + manual review; red-team prompts | Correct prices/stock/delivery (no hallucination), tool-call correctness, prompt-injection and data-leak attempts, handover flow, rate limit/budget cap, API-down fallback |
-| Animation / motion | Playwright + Chrome DevTools traces, Lighthouse CI, real mid-range Android test | 60 fps check, reduced-motion mode, skip intro, fallbacks, CLS/LCP with animation on |
+| Animation / motion | Playwright + Chrome DevTools traces, Lighthouse CI, real mid-range Android test | 60 fps check, reduced-motion mode, fallbacks, CLS/LCP with animation on |
 | Cross-browser/device | Playwright (Chromium/Firefox/WebKit) + real Android/iPhone check | |
 | UAT | Owner walkthrough with checklist before each release | |
 
@@ -633,6 +732,7 @@ Scripts: `dev` · `build` · `vercel-build` (migrate + build, used by Vercel) ·
 - [ ] (§3C) Real workshop / factory photos or video, real certifications (if any), customer photos with permission
 - [ ] (§3C) Grievance officer name and email; registered address; showroom or pickup address and hours (if any)
 - [ ] (§3C) Working hours for callback and video-call support
+- [ ] (§3D) Turntable (360) photo sets or 3D models for the 4-5 hero showcase products, banner / lifestyle photos (furnished rooms, workshop, bestsellers), brand story text, social media handles (Instagram, YouTube, Pinterest, Facebook), Google Business Profile access, founder / workshop photo
 
 ---
 
@@ -645,8 +745,8 @@ Scripts: `dev` · `build` · `vercel-build` (migrate + build, used by Vercel) ·
 | Large furniture shipping complexity & damage | Pincode-based rates, clear delivery/return policy, packaging notes |
 | Poor product photos hurt conversion & SEO | Photo guidelines, image optimisation |
 | Overselling stock | Transactional stock reservation |
-| Heavy animation/3D slows site on low-end phones, hurts SEO | Lazy loading, device tiering, static fallback, JS budget in CI, Lighthouse gate |
-| Missing 3D model / vector logo delays hero | Decide option A/B/C in Sprint 0.5; start with image-sequence fallback |
+| Heavy animation/3D slows site on low-end phones, hurts SEO and conversion | Lazy loaded 3D, 360 image frames instead of heavy models, device tiering, static fallback, JS budget in CI, Lighthouse gate, A/B test hero modes |
+| Missing vector logo, 360 photo sets / 3D models or real photos make the hero look generic | Get the SVG logo and a product photo shoot (turntable for 4-5 hero products) before the redesign goes live (§13); static poster fallback meanwhile |
 | AI assistant gives a wrong price/policy or leaks data | Tool-grounded answers only, server-side validation, verification before order data, eval set in CI, human handover |
 | Free-tier limits hit, model/terms change, or content used for provider training | Reply cache, rate limits, fallback provider + rule-based mode, adapter to switch vendor, no personal data sent to LLM |
 | Misleading MRP / fake countdown (consumer-protection risk) | Real MRP only, genuine sale end dates, legal review of wording (§3C.2) |
